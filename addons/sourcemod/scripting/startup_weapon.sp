@@ -15,7 +15,7 @@ public Plugin myinfo =
 	name = "StartupWeapon",
 	author = "TouchMe",
 	description = "Add weapons on survivors while they are in the saveroom",
-	version = "build0001"
+	version = "build0002"
 };
 
 // Libs
@@ -233,7 +233,6 @@ public Action Event_WeaponDrop(Event hEvent, const char[] name, bool dontBroadca
 	}
 
 	static const char sWeapons[][] = {
-		"melee",
 		"smg_silenced", "smg", "smg_mp5",
 		"pumpshotgun", "shotgun_chrome",
 		"sniper_scout",
