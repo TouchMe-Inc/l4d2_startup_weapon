@@ -1,0 +1,192 @@
+"Phrases"
+{
+	"TAG"
+	{
+		"en"			"<{green}Startup Weapon{default}> "
+	}
+
+	"ONLY_ALIVE_SURVIVOR"
+	{
+		"en"			"Only alive {blue}survivors{default} can get weapons"
+	}
+
+	"ROUND_LIVE"
+	{
+		"en"			"The round has already begun"
+	}
+
+	"MENU_MAIN"
+	{
+		"en"			"Choose weapon:\n "
+	}
+
+	"MENU_MELEE"
+	{
+		"en"			"Melee"
+	}
+
+	"MENU_T1"
+	{
+		"en"			"Tier 1"
+	}
+
+	"MENU_T2"
+	{
+		"en"			"Tier 2"
+	}
+
+	"MENU_T3"
+	{
+		"en"			"Tier 3"
+	}
+
+	"baseball_bat"
+	{
+		"en"			"Baseball Bat"
+	}
+
+	"cricket_bat"
+	{
+		"en"			"Cricket Bat"
+	}
+
+	"crowbar"
+	{
+		"en"			"Crowbar"
+	}
+
+	"electric_guitar"
+	{
+		"en"			"Guitar"
+	}
+
+	"frying_pan"
+	{
+		"en"			"Frying Pan"
+	}
+
+	"golfclub"
+	{
+		"en"			"Golf Club"
+	}
+
+	"knife"
+	{
+		"en"			"Knife"
+	}
+
+	"shovel"
+	{
+		"en"			"Shovel"
+	}
+
+	"pitchfork"
+	{
+		"en"			"Pitchfork"
+	}
+
+	"tonfa"
+	{
+		"en"			"Tonfa"
+	}
+
+	"katana"
+	{
+		"en"			"Katana"
+	}
+
+	"fireaxe"
+	{
+		"en"			"Axe"
+	}
+
+	"machete"
+	{
+		"en"			"Machete"
+	}
+
+	"weapon_smg"
+	{
+		"en"			"Smg"
+	}
+
+	"weapon_smg_silenced"
+	{
+		"en"			"Smg (Silenced)"
+	}
+
+	"weapon_smg_mp5"
+	{
+		"en"			"MP5"
+	}
+
+	"weapon_pumpshotgun"
+	{
+		"en"			"Pump"
+	}
+
+	"weapon_shotgun_chrome"
+	{
+		"en"			"Chrome"
+	}
+
+	"weapon_sniper_scout"
+	{
+		"en"			"Scout"
+	}
+
+	"weapon_autoshotgun"
+	{
+		"en"			"Autoshotgun"
+	}
+
+	"weapon_shotgun_spas"
+	{
+		"en"			"SPAS-12"
+	}
+
+	"weapon_hunting_rifle"
+	{
+		"en"			"Hunting"
+	}
+
+	"weapon_sniper_military"
+	{
+		"en"			"Military"
+	}
+
+	"weapon_rifle"
+	{
+		"en"			"M16"
+	}
+
+	"weapon_rifle_desert"
+	{
+		"en"			"Scar"
+	}
+
+	"weapon_rifle_ak47"
+	{
+		"en"			"AK47"
+	}
+
+	"weapon_rifle_sg552"
+	{
+		"en"			"SG552"
+	}
+
+	"weapon_sniper_awp"
+	{
+		"en"			"AWP"
+	}
+
+	"weapon_grenade_launcher"
+	{
+		"en"			"Grenade Launcher"
+	}
+
+	"weapon_rifle_m60"
+	{
+		"en"			"M60"
+	}
+}

@@ -1,0 +1,188 @@
+"Weapons"
+{
+    "category"
+    {
+        "name" "MENU_MELEE"
+        "cmd" "melee"
+        "items"
+        {
+            "item"
+            {
+                "name" "katana"
+                "cmd" "katana"
+            }
+            "item"
+            {
+                "name" "fireaxe"
+                "cmd" "axe"
+            }
+            "item"
+            {
+                "name" "machete"
+                "cmd" "machete"
+            }
+            "item"
+            {
+                "name" "baseball_bat"
+                "cmd" "baseball"
+            }
+            "item"
+            {
+                "name" "cricket_bat"
+                "cmd" "cricket"
+            }
+            "item"
+            {
+                "name" "crowbar"
+                "cmd" "crowbar"
+            }
+            "item"
+            {
+                "name" "electric_guitar"
+                "cmd" "guitar"
+            }
+            "item"
+            {
+                "name" "frying_pan"
+                "cmd" "fryingpan"
+            }
+            "item"
+            {
+                "name" "golfclub"
+                "cmd" "golfclub"
+            }
+            "item"
+            {
+                "name" "knife"
+                "cmd" "knife"
+            }
+            "item"
+            {
+                "name" "shovel"
+                "cmd" "shovel"
+            }
+            "item"
+            {
+                "name" "pitchfork"
+                "cmd" "pitchfork"
+            }
+            "item"
+            {
+                "name" "tonfa"
+                "cmd" "tonfa"
+            }
+        }
+    }
+
+    "category"
+    {
+        "name" "MENU_T1"
+        "cmd" "t1"
+        "items"
+        {
+            "item"
+            {
+                "name" "weapon_smg"
+                "cmd" "smg"
+            }
+            "item"
+            {
+                "name" "weapon_smg_silenced"
+                "cmd" "smgs"
+            }
+            "item"
+            {
+                "name" "weapon_smg_mp5"
+                "cmd" "mp5"
+            }
+            "item"
+            {
+                "name" "weapon_pumpshotgun"
+                "cmd" "pump"
+            }
+            "item"
+            {
+                "name" "weapon_shotgun_chrome"
+                "cmd" "chrome"
+            }
+            "item"
+            {
+                "name" "weapon_sniper_scout"
+                "cmd" "scout"
+            }
+        }
+    }
+
+    "category"
+    {
+        "name" "MENU_T2"
+        "cmd" "t2"
+        "items"
+        {
+            "item"
+            {
+                "name" "weapon_autoshotgun"
+                "cmd" "autoshotgun"
+            }
+            "item"
+            {
+                "name" "weapon_hunting_rifle"
+                "cmd" "hunting"
+            }
+            "item"
+            {
+                "name" "weapon_sniper_military"
+                "cmd" "military"
+            }
+            "item"
+            {
+                "name" "weapon_rifle"
+                "cmd" "m4a1"
+            }
+            "item"
+            {
+                "name" "weapon_rifle_desert"
+                "cmd" "scar"
+            }
+            "item"
+            {
+                "name" "weapon_rifle_ak47"
+                "cmd" "ak47"
+            }
+            "item"
+            {
+                "name" "weapon_rifle_sg552"
+                "cmd" "sg552"
+            }
+            "item"
+            {
+                "name" "weapon_shotgun_spas"
+                "cmd" "spas"
+            }
+        }
+    }
+
+    "category"
+    {
+        "name" "MENU_T3"
+        "cmd" "t3"
+        "items"
+        {
+            "item"
+            {
+                "name" "weapon_grenade_launcher"
+                "cmd" "gl"
+            }
+            "item"
+            {
+                "name" "weapon_rifle_m60"
+                "cmd" "m60"
+            }
+            "item"
+            {
+                "name" "weapon_sniper_awp"
+                "cmd" "awp"
+            }
+        }
+    }
+}

@@ -1,0 +1,192 @@
+"Phrases"
+{
+	"TAG"
+	{
+		"ru"			"<{green}Startup Weapon{default}> "
+	}
+
+	"ONLY_ALIVE_SURVIVOR"
+	{
+		"ru"			"Только живые игроки из команды {blue}выживших{default} могут взять оружие"
+	}
+
+	"ROUND_LIVE"
+	{
+		"ru"			"Раунд уже начался!"
+	}
+
+	"MENU_MAIN"
+	{
+		"ru"			"Выберите оружие: \n"
+	}
+
+	"MENU_MELEE"
+	{
+		"ru"			"Рукопашное"
+	}
+
+	"MENU_T1"
+	{
+		"ru"			"Tier 1"
+	}
+
+	"MENU_T2"
+	{
+		"ru"			"Tier 2"
+	}
+
+	"MENU_T3"
+	{
+		"ru"			"Tier 3"
+	}
+
+	"baseball_bat"
+	{
+		"ru"			"Бейсбольная бита"
+	}
+
+	"cricket_bat"
+	{
+		"ru"			"Крикетная бита"
+	}
+
+	"crowbar"
+	{
+		"ru"			"Лом"
+	}
+
+	"electric_guitar"
+	{
+		"ru"			"Гитара"
+	}
+
+	"frying_pan"
+	{
+		"ru"			"Сковорода"
+	}
+
+	"golfclub"
+	{
+		"ru"			"Клюшка"
+	}
+
+	"knife"
+	{
+		"ru"			"Нож"
+	}
+
+	"shovel"
+	{
+		"ru"			"Лопата"
+	}
+
+	"pitchfork"
+	{
+		"ru"			"Вилы"
+	}
+
+	"tonfa"
+	{
+		"ru"			"Тонфа"
+	}
+
+	"katana"
+	{
+		"ru"			"Катана"
+	}
+
+	"fireaxe"
+	{
+		"ru"			"Топор"
+	}
+
+	"machete"
+	{
+		"ru"			"Мачете"
+	}
+
+	"weapon_smg"
+	{
+		"ru"			"Smg"
+	}
+
+	"weapon_smg_silenced"
+	{
+		"ru"			"Smg (Silenced)"
+	}
+
+	"weapon_smg_mp5"
+	{
+		"ru"			"MP5"
+	}
+
+	"weapon_pumpshotgun"
+	{
+		"ru"			"Pump"
+	}
+
+	"weapon_shotgun_chrome"
+	{
+		"ru"			"Chrome"
+	}
+
+	"weapon_sniper_scout"
+	{
+		"ru"			"Scout"
+	}
+
+	"weapon_autoshotgun"
+	{
+		"ru"			"Autoshotgun"
+	}
+
+	"weapon_shotgun_spas"
+	{
+		"ru"			"SPAS-12"
+	}
+
+	"weapon_hunting_rifle"
+	{
+		"ru"			"Hunting"
+	}
+
+	"weapon_sniper_military"
+	{
+		"ru"			"Military"
+	}
+
+	"weapon_rifle"
+	{
+		"ru"			"M16"
+	}
+
+	"weapon_rifle_desert"
+	{
+		"ru"			"Scar"
+	}
+
+	"weapon_rifle_ak47"
+	{
+		"ru"			"AK47"
+	}
+
+	"weapon_rifle_sg552"
+	{
+		"ru"			"SG552"
+	}
+
+	"weapon_sniper_awp"
+	{
+		"ru"			"AWP"
+	}
+
+	"weapon_grenade_launcher"
+	{
+		"ru"			"Grenade Launcher"
+	}
+
+	"weapon_rifle_m60"
+	{
+		"ru"			"M60"
+	}
+}
