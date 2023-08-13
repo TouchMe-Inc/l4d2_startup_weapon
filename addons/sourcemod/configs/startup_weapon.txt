@@ -2,6 +2,22 @@
 {
 	"Melee"
 	{
+		"katana"
+		{
+			"cmd" "katana"
+		}
+
+		"fireaxe"
+		{
+			"cmd" "axe"
+			"cmd" "fireaxe"
+		}
+
+		"machete"
+		{
+			"cmd" "machete"
+		}
+
 		"baseball_bat"
 		{
 			"cmd" "baseball"
@@ -24,7 +40,7 @@
 
 		"frying_pan"
 		{
-			"cmd" "frying_pan"
+			"cmd" "fryingpan"
 		}
 
 		"golfclub"
@@ -34,7 +50,7 @@
 
 		"knife"
 		{
-			"cmd" "shovel"
+			"cmd" "knife"
 		}
 
 		"shovel"
@@ -50,27 +66,6 @@
 		"tonfa"
 		{
 			"cmd" "tonfa"
-		}
-
-		"tonfa"
-		{
-			"cmd" "tonfa"
-		}
-
-		"katana"
-		{
-			"cmd" "katana"
-		}
-
-		"fireaxe"
-		{
-			"cmd" "axe"
-			"cmd" "fireaxe"
-		}
-
-		"machete"
-		{
-			"cmd" "machete"
 		}
 	}
 
@@ -89,17 +84,17 @@
 
 		"weapon_smg_mp5"
 		{
-			"cmd" "mp5"
+			"cmd" "sm_mp5"
 		}
 
 		"weapon_pumpshotgun"
 		{
-			"cmd" "pump"
+			"cmd" "sm_pump"
 		}
 
 		"weapon_shotgun_chrome"
 		{
-			"cmd" "chrome"
+			"cmd" "sm_chrome"
 		}
 
 		//"weapon_sniper_scout"
@@ -113,47 +108,47 @@
 	{
 		"weapon_autoshotgun"
 		{
-			"cmd" "autoshotgun"
-		}
-
-		"weapon_shotgun_spas"
-		{
-			"cmd" "spas"
+			"cmd" "sm_autoshotgun"
 		}
 
 		"weapon_hunting_rifle"
 		{
-			"cmd" "hunting"
+			"cmd" "sm_hunting"
 		}
 
 		"weapon_sniper_military"
 		{
-			"cmd" "military"
+			"cmd" "sm_military"
 		}
 
 		"weapon_rifle"
 		{
-			"cmd" "m4a1"
+			"cmd" "sm_m4a1"
 		}
 
 		"weapon_rifle_desert"
 		{
-			"cmd" "scar"
+			"cmd" "sm_scar"
 		}
 
 		"weapon_rifle_ak47"
 		{
-			"cmd" "ak47"
+			"cmd" "sm_ak47"
 		}
 
 		"weapon_rifle_sg552"
 		{
-			"cmd" "sg552"
+			"cmd" "sm_sg552"
+		}
+
+		"weapon_shotgun_spas"
+		{
+			"cmd" "sm_spas"
 		}
 
 		"weapon_sniper_awp"
 		{
-			"cmd" "awp"
+			"cmd" "sm_awp"
 		}
 	}
 
@@ -161,12 +156,12 @@
 	{
 		"weapon_grenade_launcher"
 		{
-			"cmd" "gl"
+			"cmd" "sm_gl"
 		}
 
 		"weapon_rifle_m60"
 		{
-			"cmd" "m60"
+			"cmd" "sm_m60"
 		}
 	}
 }
