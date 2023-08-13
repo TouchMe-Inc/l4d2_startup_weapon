@@ -240,8 +240,7 @@ public Action Event_WeaponDrop(Event hEvent, const char[] name, bool dontBroadca
 		"autoshotgun", "shotgun_spas",
 		"rifle_ak47", "rifle_desert", "rifle_sg552", "rifle",
 		"pistol_magnum", "pistol",
-		"rifle_m60",
-		"chainsaw",
+		"rifle_m60", "grenade_launcher"
 	};
 
 	for (int iItem = 0; iItem < sizeof(sWeapons); iItem ++)
