@@ -15,7 +15,7 @@ public Plugin myinfo =
 	name = "StartupWeapon",
 	author = "TouchMe",
 	description = "Add weapons on survivors while they are in the saveroom",
-	version = "build0002"
+	version = "build0003"
 };
 
 // Libs
@@ -55,7 +55,12 @@ bool
 	g_bTier2Enabled = false,
 	g_bTier3Enabled = false;
 
-Handle g_hWeapons = INVALID_HANDLE;
+Handle
+	g_hWeapons = INVALID_HANDLE,
+	g_hMelee = INVALID_HANDLE,
+	g_hTier1 = INVALID_HANDLE,
+	g_hTier2 = INVALID_HANDLE,
+	g_hTier3 = INVALID_HANDLE;
 
 
 /**
@@ -115,6 +120,10 @@ public void OnMapStart() {
 public void OnPluginStart()
 {
 	g_hWeapons = CreateTrie();
+	g_hMelee = CreateArray(ByteCountToCells(WEAPON_NAME_SIZE));
+	g_hTier1 = CreateArray(ByteCountToCells(WEAPON_NAME_SIZE));
+	g_hTier2 = CreateArray(ByteCountToCells(WEAPON_NAME_SIZE));
+	g_hTier3 = CreateArray(ByteCountToCells(WEAPON_NAME_SIZE));
 
 	g_bMeleeEnabled = GetConVarBool(CreateConVar("sm_sw_melee_enabled", "1"));
 	g_bTier1Enabled = GetConVarBool(CreateConVar("sm_sw_tier1_enabled", "1"));
@@ -132,6 +141,18 @@ public void OnPluginStart()
 	HookEvent("weapon_drop", Event_WeaponDrop);
 }
 
+/**
+ * Called when the plugin is about to be unloaded.
+ */
+public void OnPluginEnd()
+{
+	CloseHandle(g_hWeapons);
+	CloseHandle(g_hMelee);
+	CloseHandle(g_hTier1);
+	CloseHandle(g_hTier2);
+	CloseHandle(g_hTier3);
+}
+
 void RegCmds()
 {
 	Handle hSnapshot = CreateTrieSnapshot(g_hWeapons);
@@ -147,6 +168,13 @@ void RegCmds()
 	}
 
 	CloseHandle(hSnapshot);
+
+	RegConsoleCmd("sm_w", Cmd_ShowMainMenu);
+
+	g_bMeleeEnabled && RegConsoleCmd("sm_melee", Cmd_ShowWeaponMenu);
+	g_bTier1Enabled && RegConsoleCmd("sm_t1", Cmd_ShowWeaponMenu);
+	g_bTier2Enabled && RegConsoleCmd("sm_t2", Cmd_ShowWeaponMenu);
+	g_bTier3Enabled && RegConsoleCmd("sm_t3", Cmd_ShowWeaponMenu);
 }
 
 public Action Cmd_GiveWeapon(int iClient, int iArgs)
@@ -164,40 +192,131 @@ public Action Cmd_GiveWeapon(int iClient, int iArgs)
 		return Plugin_Continue;
 	}
 
-	if (g_bReadyUpAvailable && !IsInReady())
-	{
-		CPrintToChat(iClient, "%T%T", "TAG", iClient, "LEFT_READYUP", iClient);
-		return Plugin_Continue;
+	if (CanPickupWeapon(iClient)) {
+		PickupWeapon(iClient, sWeaponName);
 	}
-
-	if (!g_bReadyUpAvailable && g_bRoundIsLive)
-	{
-		CPrintToChat(iClient, "%T%T", "TAG", iClient, "ROUND_LIVE", iClient);
-		return Plugin_Continue;
-	}
-
-	if (!IsClientSurvivor(iClient) || !IsPlayerAlive(iClient))
-	{
-		CPrintToChat(iClient, "%T%T", "TAG", iClient, "ONLY_ALIVE_SURVIVOR", iClient);
-		return Plugin_Continue;
-	}
-
-	int iEntOldWeapon = GetPlayerWeaponSlot(iClient, IsSecondary(sWeaponName) ? 1 : 0);
-
-	if (iEntOldWeapon != -1) {
-		RemovePlayerItem(iClient, iEntOldWeapon);
-	}
-
-	GivePlayerItem(iClient, sWeaponName);
 
 	return Plugin_Continue;
 }
 
-/**
- * Called when the plugin is about to be unloaded.
- */
-public void OnPluginEnd() {
-	CloseHandle(g_hWeapons);
+public Action Cmd_ShowMainMenu(int iClient, int iArgs)
+{
+	if (!IsValidClient(iClient)
+	|| !CanPickupWeapon(iClient)) {
+		return Plugin_Continue;
+	}
+
+	Menu hMenu = CreateMenu(HandlerMainMenu, MenuAction_Select|MenuAction_End);
+
+	SetMenuTitle(hMenu, "%T", "MAIN_MENU_TITLE", iClient);
+
+	if (g_bMeleeEnabled) {
+		AddMenuItem(hMenu, "melee", "Melee (!melee)");
+	}
+
+	if (g_bTier1Enabled) {
+		AddMenuItem(hMenu, "tier1", "Tier1 (!t1)");
+	}
+
+	if (g_bTier2Enabled) {
+		AddMenuItem(hMenu, "tier2", "Tier2 (!t2)");
+	}
+
+	if (g_bTier3Enabled) {
+		AddMenuItem(hMenu, "tier3", "Tier3 (!t3)");
+	}
+
+	DisplayMenu(hMenu, iClient, -1);
+
+	return Plugin_Continue;
+}
+
+public int HandlerMainMenu(Menu hMenu, MenuAction hAction, int iClient, int iItem)
+{
+	switch(hAction)
+	{
+		case MenuAction_End: CloseHandle(hMenu);
+
+		case MenuAction_Select:
+		{
+			if (!CanPickupWeapon(iClient)) {
+				return 0;
+			}
+
+			char sItem[16]; GetMenuItem(hMenu, iItem, sItem, sizeof(sItem));
+
+			switch(sItem[4])
+			{
+				case 'e': ShowWeaponMenu(iClient, g_hMelee);
+				case '1': ShowWeaponMenu(iClient, g_hTier1);
+				case '2': ShowWeaponMenu(iClient, g_hTier2);
+				case '3': ShowWeaponMenu(iClient, g_hTier3);
+			}
+		}
+	}
+
+	return 0;
+}
+
+void ShowWeaponMenu(int iClient, Handle &hType)
+{
+	int iSize = GetArraySize(hType);
+	char sWeaponName[WEAPON_NAME_SIZE], sMenuItem[64];
+
+	Menu hMenu = CreateMenu(HandlerWeaponMenu, MenuAction_Select|MenuAction_End);
+	SetMenuTitle(hMenu, "%T", "WEAPON_MENU_TITLE", iClient);
+
+	for (int iIndex = 0; iIndex < iSize; iIndex ++)
+	{
+		GetArrayString(hType, iIndex, sWeaponName, sizeof(sWeaponName));
+
+		Format(sMenuItem, sizeof(sMenuItem), "%T", sWeaponName, iClient);
+
+		AddMenuItem(hMenu, sWeaponName, sMenuItem);
+	}
+
+	DisplayMenu(hMenu, iClient, -1);
+}
+
+public int HandlerWeaponMenu(Menu hMenu, MenuAction hAction, int iClient, int iItem)
+{
+	switch(hAction)
+	{
+		case MenuAction_End: CloseHandle(hMenu);
+
+		case MenuAction_Select:
+		{
+			char sWeaponName[WEAPON_NAME_SIZE];
+			GetMenuItem(hMenu, iItem, sWeaponName, sizeof(sWeaponName));
+
+			if (CanPickupWeapon(iClient)) {
+				PickupWeapon(iClient, sWeaponName);
+			}
+		}
+	}
+
+	return 0;
+}
+
+public Action Cmd_ShowWeaponMenu(int iClient, int iArgs)
+{
+	if (!IsValidClient(iClient)
+	|| !CanPickupWeapon(iClient)) {
+		return Plugin_Continue;
+	}
+
+	char sCmd[WEAPON_CMD_SIZE];
+	GetCmdArg(0, sCmd, sizeof(sCmd));
+
+	switch(sCmd[4])
+	{
+		case 'e': ShowWeaponMenu(iClient, g_hMelee);
+		case '1': ShowWeaponMenu(iClient, g_hTier1);
+		case '2': ShowWeaponMenu(iClient, g_hTier2);
+		case '3': ShowWeaponMenu(iClient, g_hTier3);
+	}
+
+	return Plugin_Continue;
 }
 
 public Action Event_RoundStart(Event hEvent, const char[] name, bool dontBroadcast)
@@ -253,6 +372,40 @@ public Action Event_WeaponDrop(Event hEvent, const char[] name, bool dontBroadca
 	}
 
 	return Plugin_Continue;
+}
+
+bool CanPickupWeapon(int iClient)
+{
+	if (g_bReadyUpAvailable && !IsInReady())
+	{
+		CPrintToChat(iClient, "%T%T", "TAG", iClient, "LEFT_READYUP", iClient);
+		return false;
+	}
+
+	if (!g_bReadyUpAvailable && g_bRoundIsLive)
+	{
+		CPrintToChat(iClient, "%T%T", "TAG", iClient, "ROUND_LIVE", iClient);
+		return false;
+	}
+
+	if (!IsClientSurvivor(iClient) || !IsPlayerAlive(iClient))
+	{
+		CPrintToChat(iClient, "%T%T", "TAG", iClient, "ONLY_ALIVE_SURVIVOR", iClient);
+		return false;
+	}
+
+	return true;
+}
+
+void PickupWeapon(int iClient, const char[] sWeaponName)
+{
+	int iEntOldWeapon = GetPlayerWeaponSlot(iClient, IsSecondary(sWeaponName) ? 1 : 0);
+
+	if (iEntOldWeapon != -1) {
+		RemovePlayerItem(iClient, iEntOldWeapon);
+	}
+
+	GivePlayerItem(iClient, sWeaponName);
 }
 
 
@@ -324,14 +477,15 @@ public SMCResult Parser_KeyValue(SMCParser smc,
 									bool key_quotes,
 									bool value_quotes)
 {
-	switch(g_tConfigSection)
-	{
-		case ConfigSection_Melee, ConfigSection_Tier1, ConfigSection_Tier2, ConfigSection_Tier3:
-		{
-			if (StrEqual(sKey, "cmd", false)) {
-				SetTrieString(g_hWeapons, sValue, g_sConfigSection);
-			}
-		}
+	if (g_tConfigSection != ConfigSection_Melee
+	&& g_tConfigSection != ConfigSection_Tier1
+	&& g_tConfigSection != ConfigSection_Tier2
+	&& g_tConfigSection != ConfigSection_Tier3) {
+		return SMCParse_Continue;
+	}
+
+	if (StrEqual(sKey, "cmd", false)) {
+		SetTrieString(g_hWeapons, sValue, g_sConfigSection);
 	}
 
 	return SMCParse_Continue;
@@ -344,9 +498,20 @@ public SMCResult Parser_LeaveSection(SMCParser smc)
 	|| g_tConfigSection == ConfigSection_Tier2
 	|| g_tConfigSection == ConfigSection_Tier3)
 	{
-		if (g_sConfigSection[0] != '\0') {
+		if (g_sConfigSection[0] != '\0')
+		{
+			switch(g_tConfigSection)
+			{
+				case ConfigSection_Melee: PushArrayString(g_hMelee, g_sConfigSection);
+				case ConfigSection_Tier1: PushArrayString(g_hTier1, g_sConfigSection);
+				case ConfigSection_Tier2: PushArrayString(g_hTier2, g_sConfigSection);
+				case ConfigSection_Tier3: PushArrayString(g_hTier3, g_sConfigSection);
+			}
+
 			g_sConfigSection[0] = '\0';
-		} else {
+		}
+
+		else {
 			g_tConfigSection = ConfigSection_Weapons;
 		}
 	}
