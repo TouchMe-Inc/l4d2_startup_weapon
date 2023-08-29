@@ -10,7 +10,7 @@ Add weapons on survivors while they are in the saveroom.
 
 `!t3` - show menu with tier3 weapons.
 
-`!<weapon>` - get <weapon>.
+`!<weapon>` - get "weapon" (!smg, !pump).
 
 ## NULL Ent 'weapon_###' in GiveNamedItem!
 This error occurs if weapons are blocked on the map.
