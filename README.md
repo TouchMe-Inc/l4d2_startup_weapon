@@ -3,9 +3,13 @@ Add weapons on survivors while they are in the saveroom.
 
 ## Commands
 `!w` - show menu with types weapons.
+
 `!t1` - show menu with tier1 weapons.
+
 `!t2` - show menu with tier2 weapons.
+
 `!t3` - show menu with tier3 weapons.
+
 `!<weapon>` - get <weapon>.
 
 ## NULL Ent 'weapon_###' in GiveNamedItem!
