@@ -55,7 +55,10 @@ ConVar
 	g_cvTier3 = null;
 
 Handle
-	g_hWeapons = INVALID_HANDLE,
+	g_hMeleeCmd = INVALID_HANDLE,
+	g_hTier1Cmd = INVALID_HANDLE,
+	g_hTier2Cmd = INVALID_HANDLE,
+	g_hTier3Cmd = INVALID_HANDLE,
 	g_hMelee = INVALID_HANDLE,
 	g_hTier1 = INVALID_HANDLE,
 	g_hTier2 = INVALID_HANDLE,
@@ -90,7 +93,10 @@ public void OnPluginStart()
 	LoadTranslations(TRANSLATIONS);
 
 	// Config
-	g_hWeapons = CreateTrie();
+	g_hMeleeCmd = CreateTrie();
+	g_hTier1Cmd = CreateTrie();
+	g_hTier2Cmd = CreateTrie();
+	g_hTier3Cmd = CreateTrie();
 	g_hMelee = CreateArray(ByteCountToCells(WEAPON_NAME_SIZE));
 	g_hTier1 = CreateArray(ByteCountToCells(WEAPON_NAME_SIZE));
 	g_hTier2 = CreateArray(ByteCountToCells(WEAPON_NAME_SIZE));
@@ -105,7 +111,27 @@ public void OnPluginStart()
 	(g_cvTier3 = CreateConVar("sm_sw_tier3_enabled", "0"));
 
 	// Register commands
-	Handle hSnapshot = CreateTrieSnapshot(g_hWeapons);
+	RegCmds(g_hMeleeCmd);
+	RegCmds(g_hTier1Cmd);
+	RegCmds(g_hTier2Cmd);
+	RegCmds(g_hTier3Cmd);
+
+	RegConsoleCmd("sm_w", Cmd_ShowMainMenu);
+
+	RegConsoleCmd("sm_melee", Cmd_ShowWeaponMenu);
+	RegConsoleCmd("sm_t1", Cmd_ShowWeaponMenu);
+	RegConsoleCmd("sm_t2", Cmd_ShowWeaponMenu);
+	RegConsoleCmd("sm_t3", Cmd_ShowWeaponMenu);
+
+	// Events
+	HookEvent("round_start", Event_RoundStart, EventHookMode_PostNoCopy);
+	HookEvent("player_left_start_area", Event_LeftStartArea, EventHookMode_PostNoCopy);
+	HookEvent("weapon_drop", Event_WeaponDrop);
+}
+
+void RegCmds(Handle &hType)
+{
+	Handle hSnapshot = CreateTrieSnapshot(hType);
 
 	int iSize = TrieSnapshotLength(hSnapshot);
 
@@ -118,18 +144,6 @@ public void OnPluginStart()
 	}
 
 	CloseHandle(hSnapshot);
-
-	RegConsoleCmd("sm_w", Cmd_ShowMainMenu);
-
-	MELEE_ENABLE && RegConsoleCmd("sm_melee", Cmd_ShowWeaponMenu);
-	T1_ENABLE && RegConsoleCmd("sm_t1", Cmd_ShowWeaponMenu);
-	T2_ENABLE && RegConsoleCmd("sm_t2", Cmd_ShowWeaponMenu);
-	T3_ENABLE && RegConsoleCmd("sm_t3", Cmd_ShowWeaponMenu);
-
-	// Events
-	HookEvent("round_start", Event_RoundStart, EventHookMode_PostNoCopy);
-	HookEvent("player_left_start_area", Event_LeftStartArea, EventHookMode_PostNoCopy);
-	HookEvent("weapon_drop", Event_WeaponDrop);
 }
 
 /**
@@ -137,7 +151,10 @@ public void OnPluginStart()
  */
 public void OnPluginEnd()
 {
-	CloseHandle(g_hWeapons);
+	CloseHandle(g_hMeleeCmd);
+	CloseHandle(g_hTier1Cmd);
+	CloseHandle(g_hTier2Cmd);
+	CloseHandle(g_hTier3Cmd);
 	CloseHandle(g_hMelee);
 	CloseHandle(g_hTier1);
 	CloseHandle(g_hTier2);
@@ -199,7 +216,10 @@ Action Cmd_GiveWeapon(int iClient, int iArgs)
 
 	char sWeaponName[WEAPON_NAME_SIZE];
 
-	if (!GetTrieString(g_hWeapons, sCmd, sWeaponName, sizeof(sWeaponName))) {
+	if ((!MELEE_ENABLE || !GetTrieString(g_hMeleeCmd, sCmd, sWeaponName, sizeof(sWeaponName)))
+		&& (!T1_ENABLE || !GetTrieString(g_hTier1Cmd, sCmd, sWeaponName, sizeof(sWeaponName)))
+		&& (!T2_ENABLE || !GetTrieString(g_hTier2Cmd, sCmd, sWeaponName, sizeof(sWeaponName)))
+		&& (!T3_ENABLE || !GetTrieString(g_hTier3Cmd, sCmd, sWeaponName, sizeof(sWeaponName)))) {
 		return Plugin_Continue;
 	}
 
@@ -237,10 +257,10 @@ Action Cmd_ShowWeaponMenu(int iClient, int iArgs)
 
 	switch(sCmd[4])
 	{
-		case 'e': ShowWeaponMenu(iClient, g_hMelee);
-		case '1': ShowWeaponMenu(iClient, g_hTier1);
-		case '2': ShowWeaponMenu(iClient, g_hTier2);
-		case '3': ShowWeaponMenu(iClient, g_hTier3);
+		case 'e': MELEE_ENABLE && ShowWeaponMenu(iClient, g_hMelee);
+		case '1': T1_ENABLE && ShowWeaponMenu(iClient, g_hTier1);
+		case '2': T2_ENABLE && ShowWeaponMenu(iClient, g_hTier2);
+		case '3': T3_ENABLE && ShowWeaponMenu(iClient, g_hTier3);
 	}
 
 	return Plugin_Continue;
@@ -442,8 +462,15 @@ public SMCResult Parser_KeyValue(SMCParser smc,
 		return SMCParse_Continue;
 	}
 
-	if (StrEqual(sKey, "cmd", false)) {
-		SetTrieString(g_hWeapons, sValue, g_sConfigSection);
+	if (StrEqual(sKey, "cmd", false))
+	{
+		switch(g_tConfigSection)
+		{
+			case ConfigSection_Melee: SetTrieString(g_hMeleeCmd, sValue, g_sConfigSection);
+			case ConfigSection_Tier1: SetTrieString(g_hTier1Cmd, sValue, g_sConfigSection);
+			case ConfigSection_Tier2: SetTrieString(g_hTier2Cmd, sValue, g_sConfigSection);
+			case ConfigSection_Tier3: SetTrieString(g_hTier3Cmd, sValue, g_sConfigSection);
+		}
 	}
 
 	return SMCParse_Continue;
