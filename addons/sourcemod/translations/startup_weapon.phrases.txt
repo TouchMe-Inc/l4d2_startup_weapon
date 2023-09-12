@@ -10,11 +10,6 @@
 		"en"			"Only alive {blue}survivors{default} can get weapons"
 	}
 
-	"LEFT_READYUP"
-	{
-		"en"			"The command is available before readyup"
-	}
-
 	"ROUND_LIVE"
 	{
 		"en"			"The round has already begun"
