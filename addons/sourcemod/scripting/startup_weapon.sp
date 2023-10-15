@@ -30,7 +30,6 @@ public Plugin myinfo =
 #define T3_ENABLE               (GetConVarBool(g_cvTier3))
 
 // Vars
-SMCParser g_hParser;
 
 enum ConfigSection
 {
@@ -146,21 +145,6 @@ void RegCmds(Handle &hType)
 	CloseHandle(hSnapshot);
 }
 
-/**
- * Called when the plugin is about to be unloaded.
- */
-public void OnPluginEnd()
-{
-	CloseHandle(g_hMeleeCmd);
-	CloseHandle(g_hTier1Cmd);
-	CloseHandle(g_hTier2Cmd);
-	CloseHandle(g_hTier3Cmd);
-	CloseHandle(g_hMelee);
-	CloseHandle(g_hTier1);
-	CloseHandle(g_hTier2);
-	CloseHandle(g_hTier3);
-}
-
 void Event_RoundStart(Event hEvent, const char[] name, bool dontBroadcast) {
 	g_bRoundIsLive = false;
 }
@@ -247,8 +231,7 @@ Action Cmd_ShowMainMenu(int iClient, int iArgs)
 
 Action Cmd_ShowWeaponMenu(int iClient, int iArgs)
 {
-	if (!IsValidClient(iClient)
-	|| !CanPickupWeapon(iClient)) {
+	if (!IsValidClient(iClient) || !CanPickupWeapon(iClient)) {
 		return Plugin_Continue;
 	}
 
@@ -387,7 +370,7 @@ void PickupWeapon(int iClient, const char[] sWeaponName)
 }
 
 
-void LoadConfig(const char[] sPathToConfig)
+bool LoadConfig(const char[] sPathToConfig)
 {
 	char sPath[PLATFORM_MAX_PATH];
 	BuildPath(Path_SM, sPath, PLATFORM_MAX_PATH, sPathToConfig);
@@ -396,20 +379,25 @@ void LoadConfig(const char[] sPathToConfig)
 		SetFailState("File %s not found", sPath);
 	}
 
-	g_hParser = new SMCParser();
-	g_hParser.OnEnterSection = Parser_EnterSection;
-	g_hParser.OnKeyValue = Parser_KeyValue;
-	g_hParser.OnLeaveSection = Parser_LeaveSection;
+	Handle hParser = SMC_CreateParser();
 
-	SMCError err = g_hParser.ParseFile(sPath);
+	int iLine = 0;
+	int iColumn = 0;
 
-	if (err != SMCError_Okay)
+	SMC_SetReaders(hParser, Parser_EnterSection, Parser_KeyValue, Parser_LeaveSection);
+	
+	SMCError hResult = SMC_ParseFile(hParser, sPath, iLine, iColumn);
+	
+	CloseHandle(hParser);
+
+	if (hResult != SMCError_Okay)
 	{
-		char buffer[64];
-		if (g_hParser.GetErrorString(err, buffer, sizeof(buffer))) {
-			LogError("%s", buffer);
-		}
+		char sError[128];
+		SMC_GetErrorString(hResult, sError, sizeof(sError));
+		LogError("%s on line %d, col %d of %s", sError, iLine, iColumn, sPath);
 	}
+
+	return (hResult == SMCError_Okay);
 }
 
 public SMCResult Parser_EnterSection(SMCParser smc, const char[] sSection, bool opt_quotes)
