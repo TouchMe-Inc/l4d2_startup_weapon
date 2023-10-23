@@ -11,7 +11,7 @@ public Plugin myinfo =
 	name = "StartupWeapon",
 	author = "TouchMe",
 	description = "Add weapons on survivors while they are in the saveroom",
-	version = "build0004"
+	version = "build0005"
 };
 
 
@@ -23,45 +23,31 @@ public Plugin myinfo =
 #define WEAPON_NAME_SIZE        32
 #define WEAPON_CMD_SIZE         32
 
-// Macros
-#define MELEE_ENABLE            (GetConVarBool(g_cvMelee))
-#define T1_ENABLE               (GetConVarBool(g_cvTier1))
-#define T2_ENABLE               (GetConVarBool(g_cvTier2))
-#define T3_ENABLE               (GetConVarBool(g_cvTier3))
 
-// Vars
-
-enum ConfigSection
-{
-	ConfigSection_None,
-	ConfigSection_Weapons,
-	ConfigSection_Melee,
-	ConfigSection_Tier1,
-	ConfigSection_Tier2,
-	ConfigSection_Tier3
-}
-
-ConfigSection g_tConfigSection = ConfigSection_None;
+char g_sConfigCategory[][] = {"Melee", "Tier1", "Tier2", "Tier3"};
 
 char g_sConfigSection[WEAPON_NAME_SIZE];
 
+int g_iConfigType = -1;
+
 bool g_bRoundIsLive = false;
 
-ConVar
-	g_cvMelee = null,
-	g_cvTier1 = null,
-	g_cvTier2 = null,
-	g_cvTier3 = null;
+enum
+{
+	Melee = 0,
+	Tier1,
+	Tier2,
+	Tier3,
+	TypeSize
+}
+
+ConVar g_cvWeaponEnable[TypeSize];
+
+bool g_bWeaponEnable[TypeSize];
 
 Handle
-	g_hMeleeCmd = INVALID_HANDLE,
-	g_hTier1Cmd = INVALID_HANDLE,
-	g_hTier2Cmd = INVALID_HANDLE,
-	g_hTier3Cmd = INVALID_HANDLE,
-	g_hMelee = INVALID_HANDLE,
-	g_hTier1 = INVALID_HANDLE,
-	g_hTier2 = INVALID_HANDLE,
-	g_hTier3 = INVALID_HANDLE;
+	g_hWeapon[TypeSize],
+	g_hCmd[TypeSize];
 
 
 /**
@@ -92,81 +78,99 @@ public void OnPluginStart()
 	LoadTranslations(TRANSLATIONS);
 
 	// Config
-	g_hMeleeCmd = CreateTrie();
-	g_hTier1Cmd = CreateTrie();
-	g_hTier2Cmd = CreateTrie();
-	g_hTier3Cmd = CreateTrie();
-	g_hMelee = CreateArray(ByteCountToCells(WEAPON_NAME_SIZE));
-	g_hTier1 = CreateArray(ByteCountToCells(WEAPON_NAME_SIZE));
-	g_hTier2 = CreateArray(ByteCountToCells(WEAPON_NAME_SIZE));
-	g_hTier3 = CreateArray(ByteCountToCells(WEAPON_NAME_SIZE));
+	for (int type = 0; type < TypeSize; type ++)
+	{
+		g_hCmd[type] = CreateTrie();
+		g_hWeapon[type] = CreateArray(ByteCountToCells(WEAPON_NAME_SIZE));
+	}
 
 	LoadConfig(CONFIG_FILEPATH);
 
 	// Cvars
-	(g_cvMelee = CreateConVar("sm_sw_melee_enabled", "1"));
-	(g_cvTier1 = CreateConVar("sm_sw_tier1_enabled", "1"));
-	(g_cvTier2 = CreateConVar("sm_sw_tier2_enabled", "0"));
-	(g_cvTier3 = CreateConVar("sm_sw_tier3_enabled", "0"));
+	HookConVarChange((g_cvWeaponEnable[Melee] = CreateConVar("sm_sw_melee_enabled", "1")), OnMeleeEnableChanged);
+	HookConVarChange((g_cvWeaponEnable[Tier1] = CreateConVar("sm_sw_tier1_enabled", "1")), OnTier1EnableChanged);
+	HookConVarChange((g_cvWeaponEnable[Tier2] = CreateConVar("sm_sw_tier2_enabled", "0")), OnTier2EnableChanged);
+	HookConVarChange((g_cvWeaponEnable[Tier3] = CreateConVar("sm_sw_tier3_enabled", "0")), OnTier3EnableChanged);
 
 	// Register commands
-	RegCmds(g_hMeleeCmd);
-	RegCmds(g_hTier1Cmd);
-	RegCmds(g_hTier2Cmd);
-	RegCmds(g_hTier3Cmd);
-
 	RegConsoleCmd("sm_w", Cmd_ShowMainMenu);
 
-	RegConsoleCmd("sm_melee", Cmd_ShowWeaponMenu);
-	RegConsoleCmd("sm_t1", Cmd_ShowWeaponMenu);
-	RegConsoleCmd("sm_t2", Cmd_ShowWeaponMenu);
-	RegConsoleCmd("sm_t3", Cmd_ShowWeaponMenu);
+	RegConsoleCmd("sm_melee", Cmd_ShowMeleeMenu);
+	RegConsoleCmd("sm_t1", Cmd_ShowTier1Menu);
+	RegConsoleCmd("sm_t2", Cmd_ShowTier2Menu);
+	RegConsoleCmd("sm_t3", Cmd_ShowTier3Menu);
+
+	RegConsoleCmdByMap(g_hCmd[Melee], Cmd_GiveMelee);
+	RegConsoleCmdByMap(g_hCmd[Tier1], Cmd_GiveTier1);
+	RegConsoleCmdByMap(g_hCmd[Tier2], Cmd_GiveTier2);
+	RegConsoleCmdByMap(g_hCmd[Tier3], Cmd_GiveTier3);
 
 	// Events
 	HookEvent("round_start", Event_RoundStart, EventHookMode_PostNoCopy);
 	HookEvent("player_left_start_area", Event_LeftStartArea, EventHookMode_PostNoCopy);
 	HookEvent("weapon_drop", Event_WeaponDrop);
-}
 
-void RegCmds(Handle &hType)
-{
-	Handle hSnapshot = CreateTrieSnapshot(hType);
-
-	int iSize = TrieSnapshotLength(hSnapshot);
-
-	char sCmd[WEAPON_CMD_SIZE];
-
-	for(int iIndex = 0; iIndex < iSize; iIndex ++)
+	for (int type = 0; type < TypeSize; type ++)
 	{
-		GetTrieSnapshotKey(hSnapshot, iIndex, sCmd, sizeof(sCmd));
-		RegConsoleCmd(sCmd, Cmd_GiveWeapon);
+		g_bWeaponEnable[type] = GetConVarBool(g_cvWeaponEnable[type]);
 	}
-
-	CloseHandle(hSnapshot);
 }
 
-void Event_RoundStart(Event hEvent, const char[] name, bool dontBroadcast) {
+public void OnPluginEnd()
+{
+	for (int type = 0; type < TypeSize; type ++)
+	{
+		CloseHandle(g_hCmd[type]);
+		CloseHandle(g_hWeapon[type]);
+	}
+}
+
+/**
+ * Called when a console variable value is changed.
+ */
+public void OnMeleeEnableChanged(ConVar convar, const char[] sOldWeapon, const char[] sNewWeapon) {
+	g_bWeaponEnable[Melee] = GetConVarBool(convar);
+}
+
+/**
+ * Called when a console variable value is changed.
+ */
+public void OnTier1EnableChanged(ConVar convar, const char[] sOldWeapon, const char[] sNewWeapon) {
+	g_bWeaponEnable[Tier1] = GetConVarBool(convar);
+}
+
+/**
+ * Called when a console variable value is changed.
+ */
+public void OnTier2EnableChanged(ConVar convar, const char[] sOldWeapon, const char[] sNewWeapon) {
+	g_bWeaponEnable[Tier2] = GetConVarBool(convar);
+}
+
+/**
+ * Called when a console variable value is changed.
+ */
+public void OnTier3EnableChanged(ConVar convar, const char[] sOldWeapon, const char[] sNewWeapon) {
+	g_bWeaponEnable[Tier3] = GetConVarBool(convar);
+}
+
+void Event_RoundStart(Event event, const char[] sName, bool bDontBroadcast) {
 	g_bRoundIsLive = false;
 }
 
-void Event_LeftStartArea(Event hEvent, const char[] name, bool dontBroadcast) {
+void Event_LeftStartArea(Event event, const char[] sName, bool bDontBroadcast) {
 	g_bRoundIsLive = true;
 }
 
-Action Event_WeaponDrop(Event hEvent, const char[] name, bool dontBroadcast)
+Action Event_WeaponDrop(Event event, const char[] sName, bool bDontBroadcast)
 {
 	if (g_bRoundIsLive) {
 		return Plugin_Continue;
 	}
 
 	char sWeaponName[WEAPON_NAME_SIZE];
-	GetEventString(hEvent, "item", sWeaponName, sizeof(sWeaponName));
+	GetEventString(event, "item", sWeaponName, sizeof(sWeaponName));
 
-	if (sWeaponName[0] == '\0') {
-		return Plugin_Continue;
-	}
-
-	static const char sWeapons[][] = {
+	static const char sNoDupeWeapons[][] = {
 		"smg_silenced", "smg", "smg_mp5",
 		"pumpshotgun", "shotgun_chrome",
 		"sniper_scout",
@@ -177,11 +181,11 @@ Action Event_WeaponDrop(Event hEvent, const char[] name, bool dontBroadcast)
 		"rifle_m60", "grenade_launcher"
 	};
 
-	for (int iItem = 0; iItem < sizeof(sWeapons); iItem ++)
+	for (int iItem = 0; iItem < sizeof(sNoDupeWeapons); iItem ++)
 	{
-		if (StrEqual(sWeapons[iItem], sWeaponName, false))
+		if (StrEqual(sNoDupeWeapons[iItem], sWeaponName, false))
 		{
-			RemoveEntity(GetEventInt(hEvent, "propid"));
+			RemoveEntity(GetEventInt(event, "propid"));
 			break;
 		}
 	}
@@ -189,29 +193,48 @@ Action Event_WeaponDrop(Event hEvent, const char[] name, bool dontBroadcast)
 	return Plugin_Continue;
 }
 
-Action Cmd_GiveWeapon(int iClient, int iArgs)
+Action Cmd_GiveMelee(int iClient, int iArgs)
 {
-	if (!IsValidClient(iClient)) {
+	if (!IsValidClient(iClient) || !g_bWeaponEnable[Melee]) {
 		return Plugin_Continue;
 	}
 
-	char sCmd[WEAPON_CMD_SIZE];
-	GetCmdArg(0, sCmd, sizeof(sCmd));
+	char sCmd[WEAPON_CMD_SIZE]; GetCmdArg(0, sCmd, sizeof(sCmd));
 
-	char sWeaponName[WEAPON_NAME_SIZE];
+	return GiveWeaponByTypeAndCmd(iClient, Melee, sCmd);
+}
 
-	if ((!MELEE_ENABLE || !GetTrieString(g_hMeleeCmd, sCmd, sWeaponName, sizeof(sWeaponName)))
-		&& (!T1_ENABLE || !GetTrieString(g_hTier1Cmd, sCmd, sWeaponName, sizeof(sWeaponName)))
-		&& (!T2_ENABLE || !GetTrieString(g_hTier2Cmd, sCmd, sWeaponName, sizeof(sWeaponName)))
-		&& (!T3_ENABLE || !GetTrieString(g_hTier3Cmd, sCmd, sWeaponName, sizeof(sWeaponName)))) {
+Action Cmd_GiveTier1(int iClient, int iArgs)
+{
+	if (!IsValidClient(iClient) || !g_bWeaponEnable[Tier1]) {
 		return Plugin_Continue;
 	}
 
-	if (CanPickupWeapon(iClient)) {
-		PickupWeapon(iClient, sWeaponName);
+	char sCmd[WEAPON_CMD_SIZE]; GetCmdArg(0, sCmd, sizeof(sCmd));
+
+	return GiveWeaponByTypeAndCmd(iClient, Tier1, sCmd);
+}
+
+Action Cmd_GiveTier2(int iClient, int iArgs)
+{
+	if (!IsValidClient(iClient) || !g_bWeaponEnable[Tier2]) {
+		return Plugin_Continue;
 	}
 
-	return Plugin_Handled;
+	char sCmd[WEAPON_CMD_SIZE]; GetCmdArg(0, sCmd, sizeof(sCmd));
+
+	return GiveWeaponByTypeAndCmd(iClient, Tier2, sCmd);
+}
+
+Action Cmd_GiveTier3(int iClient, int iArgs)
+{
+	if (!IsValidClient(iClient) || !g_bWeaponEnable[Tier3]) {
+		return Plugin_Continue;
+	}
+
+	char sCmd[WEAPON_CMD_SIZE]; GetCmdArg(0, sCmd, sizeof(sCmd));
+
+	return GiveWeaponByTypeAndCmd(iClient, Tier3, sCmd);
 }
 
 Action Cmd_ShowMainMenu(int iClient, int iArgs)
@@ -220,33 +243,63 @@ Action Cmd_ShowMainMenu(int iClient, int iArgs)
 		return Plugin_Continue;
 	}
 
-	if (!CanPickupWeapon(iClient)) {
-		return Plugin_Handled;
+	if (CanPickupWeapon(iClient)) {
+		ShowMainMenu(iClient);
 	}
-
-	ShowMainMenu(iClient);
 
 	return Plugin_Handled;
 }
 
-Action Cmd_ShowWeaponMenu(int iClient, int iArgs)
+Action Cmd_ShowMeleeMenu(int iClient, int iArgs)
 {
-	if (!IsValidClient(iClient) || !CanPickupWeapon(iClient)) {
+	if (!IsValidClient(iClient) || !g_bWeaponEnable[Melee]) {
 		return Plugin_Continue;
 	}
 
-	char sCmd[WEAPON_CMD_SIZE];
-	GetCmdArg(0, sCmd, sizeof(sCmd));
-
-	switch(sCmd[4])
-	{
-		case 'e': MELEE_ENABLE && ShowWeaponMenu(iClient, g_hMelee);
-		case '1': T1_ENABLE && ShowWeaponMenu(iClient, g_hTier1);
-		case '2': T2_ENABLE && ShowWeaponMenu(iClient, g_hTier2);
-		case '3': T3_ENABLE && ShowWeaponMenu(iClient, g_hTier3);
+	if (CanPickupWeapon(iClient)) {
+		ShowWeaponMenu(iClient, g_hWeapon[Melee]);
 	}
 
-	return Plugin_Continue;
+	return Plugin_Handled;
+}
+
+Action Cmd_ShowTier1Menu(int iClient, int iArgs)
+{
+	if (!IsValidClient(iClient) || !g_bWeaponEnable[Tier1]) {
+		return Plugin_Continue;
+	}
+
+	if (CanPickupWeapon(iClient)) {
+		ShowWeaponMenu(iClient, g_hWeapon[Tier1]);
+	}
+
+	return Plugin_Handled;
+}
+
+Action Cmd_ShowTier2Menu(int iClient, int iArgs)
+{
+	if (!IsValidClient(iClient) || !g_bWeaponEnable[Tier2]) {
+		return Plugin_Continue;
+	}
+
+	if (CanPickupWeapon(iClient)) {
+		ShowWeaponMenu(iClient, g_hWeapon[Tier3]);
+	}
+
+	return Plugin_Handled;
+}
+
+Action Cmd_ShowTier3Menu(int iClient, int iArgs)
+{
+	if (!IsValidClient(iClient) || !g_bWeaponEnable[Tier3]) {
+		return Plugin_Continue;
+	}
+
+	if (CanPickupWeapon(iClient)) {
+		ShowWeaponMenu(iClient, g_hWeapon[Tier3]);
+	}
+
+	return Plugin_Handled;
 }
 
 void ShowMainMenu(int iClient)
@@ -255,19 +308,19 @@ void ShowMainMenu(int iClient)
 
 	SetMenuTitle(hMenu, "%T", "MAIN_MENU_TITLE", iClient);
 
-	if (MELEE_ENABLE) {
+	if (g_bWeaponEnable[Melee]) {
 		AddMenuItem(hMenu, "melee", "Melee (!melee)");
 	}
 
-	if (T1_ENABLE) {
+	if (g_bWeaponEnable[Tier1]) {
 		AddMenuItem(hMenu, "tier1", "Tier1 (!t1)");
 	}
 
-	if (T2_ENABLE) {
+	if (g_bWeaponEnable[Tier2]) {
 		AddMenuItem(hMenu, "tier2", "Tier2 (!t2)");
 	}
 
-	if (T3_ENABLE) {
+	if (g_bWeaponEnable[Tier3]) {
 		AddMenuItem(hMenu, "tier3", "Tier3 (!t3)");
 	}
 
@@ -290,10 +343,10 @@ int HandlerMainMenu(Menu hMenu, MenuAction hAction, int iClient, int iItem)
 
 			switch(sItem[4])
 			{
-				case 'e': ShowWeaponMenu(iClient, g_hMelee);
-				case '1': ShowWeaponMenu(iClient, g_hTier1);
-				case '2': ShowWeaponMenu(iClient, g_hTier2);
-				case '3': ShowWeaponMenu(iClient, g_hTier3);
+				case 'e': ShowWeaponMenu(iClient, g_hWeapon[Melee]);
+				case '1': ShowWeaponMenu(iClient, g_hWeapon[Tier1]);
+				case '2': ShowWeaponMenu(iClient, g_hWeapon[Tier2]);
+				case '3': ShowWeaponMenu(iClient, g_hWeapon[Tier3]);
 			}
 		}
 	}
@@ -369,6 +422,38 @@ void PickupWeapon(int iClient, const char[] sWeaponName)
 	GivePlayerItem(iClient, sWeaponName);
 }
 
+void RegConsoleCmdByMap(Handle &hType, ConCmd hCallback)
+{
+	Handle hSnapshot = CreateTrieSnapshot(hType);
+
+	int iSize = TrieSnapshotLength(hSnapshot);
+
+	char sCmd[WEAPON_CMD_SIZE];
+
+	for (int iIndex = 0; iIndex < iSize; iIndex ++)
+	{
+		GetTrieSnapshotKey(hSnapshot, iIndex, sCmd, sizeof(sCmd));
+		RegConsoleCmd(sCmd, hCallback);
+	}
+
+	CloseHandle(hSnapshot);
+}
+
+Action GiveWeaponByTypeAndCmd(int iClient, int iType, const char[] sCmd)
+{
+	char sWeaponName[WEAPON_NAME_SIZE];
+
+	if (!GetTrieString(g_hCmd[iType], sCmd, sWeaponName, sizeof(sWeaponName))) {
+		return Plugin_Continue;
+	}
+
+	if (CanPickupWeapon(iClient)) {
+		PickupWeapon(iClient, sWeaponName);
+	}
+
+	return Plugin_Handled;
+}
+
 
 bool LoadConfig(const char[] sPathToConfig)
 {
@@ -384,10 +469,13 @@ bool LoadConfig(const char[] sPathToConfig)
 	int iLine = 0;
 	int iColumn = 0;
 
+	g_iConfigType = -1;
+	g_sConfigSection[0] = '\0';
+
 	SMC_SetReaders(hParser, Parser_EnterSection, Parser_KeyValue, Parser_LeaveSection);
-	
+
 	SMCError hResult = SMC_ParseFile(hParser, sPath, iLine, iColumn);
-	
+
 	CloseHandle(hParser);
 
 	if (hResult != SMCError_Okay)
@@ -402,34 +490,18 @@ bool LoadConfig(const char[] sPathToConfig)
 
 public SMCResult Parser_EnterSection(SMCParser smc, const char[] sSection, bool opt_quotes)
 {
-	if (StrEqual(sSection, "Weapons", false))
-	{
-		g_tConfigSection = ConfigSection_Weapons;
+	if (StrEqual(sSection, "Weapons", false)) {
+		g_iConfigType = -1;
 		return SMCParse_Continue;
 	}
 
-	if (StrEqual(sSection, "Melee", false))
+	for (int type = 0; type < TypeSize; type ++)
 	{
-		g_tConfigSection = ConfigSection_Melee;
-		return SMCParse_Continue;
-	}
-
-	if (StrEqual(sSection, "Tier1", false))
-	{
-		g_tConfigSection = ConfigSection_Tier1;
-		return SMCParse_Continue;
-	}
-
-	if (StrEqual(sSection, "Tier2", false))
-	{
-		g_tConfigSection = ConfigSection_Tier2;
-		return SMCParse_Continue;
-	}
-
-	if (StrEqual(sSection, "Tier3", false))
-	{
-		g_tConfigSection = ConfigSection_Tier3;
-		return SMCParse_Continue;
+		if (StrEqual(sSection, g_sConfigCategory[type], false))
+		{
+			g_iConfigType = type;
+			return SMCParse_Continue;
+		}
 	}
 
 	strcopy(g_sConfigSection, sizeof(g_sConfigSection), sSection);
@@ -443,22 +515,12 @@ public SMCResult Parser_KeyValue(SMCParser smc,
 									bool key_quotes,
 									bool value_quotes)
 {
-	if (g_tConfigSection != ConfigSection_Melee
-	&& g_tConfigSection != ConfigSection_Tier1
-	&& g_tConfigSection != ConfigSection_Tier2
-	&& g_tConfigSection != ConfigSection_Tier3) {
+	if (g_iConfigType == -1) {
 		return SMCParse_Continue;
 	}
 
-	if (StrEqual(sKey, "cmd", false))
-	{
-		switch(g_tConfigSection)
-		{
-			case ConfigSection_Melee: SetTrieString(g_hMeleeCmd, sValue, g_sConfigSection);
-			case ConfigSection_Tier1: SetTrieString(g_hTier1Cmd, sValue, g_sConfigSection);
-			case ConfigSection_Tier2: SetTrieString(g_hTier2Cmd, sValue, g_sConfigSection);
-			case ConfigSection_Tier3: SetTrieString(g_hTier3Cmd, sValue, g_sConfigSection);
-		}
+	if (StrEqual(sKey, "cmd", false)) {
+		SetTrieString(g_hCmd[g_iConfigType], sValue, g_sConfigSection);
 	}
 
 	return SMCParse_Continue;
@@ -466,28 +528,20 @@ public SMCResult Parser_KeyValue(SMCParser smc,
 
 public SMCResult Parser_LeaveSection(SMCParser smc)
 {
-	if (g_tConfigSection == ConfigSection_Melee
-	|| g_tConfigSection == ConfigSection_Tier1
-	|| g_tConfigSection == ConfigSection_Tier2
-	|| g_tConfigSection == ConfigSection_Tier3)
-	{
-		if (g_sConfigSection[0] != '\0')
-		{
-			switch(g_tConfigSection)
-			{
-				case ConfigSection_Melee: PushArrayString(g_hMelee, g_sConfigSection);
-				case ConfigSection_Tier1: PushArrayString(g_hTier1, g_sConfigSection);
-				case ConfigSection_Tier2: PushArrayString(g_hTier2, g_sConfigSection);
-				case ConfigSection_Tier3: PushArrayString(g_hTier3, g_sConfigSection);
-			}
-
-			g_sConfigSection[0] = '\0';
-		}
-
-		else {
-			g_tConfigSection = ConfigSection_Weapons;
-		}
+	if (g_iConfigType == -1) {
+		return SMCParse_Continue;
 	}
+
+	if (g_sConfigSection[0] != '\0')
+	{
+		PushArrayString(g_hWeapon[g_iConfigType], g_sConfigSection);
+		g_sConfigSection[0] = '\0';
+	}
+	
+	else {
+		g_iConfigType = -1;
+	}
+
 
 	return SMCParse_Continue;
 }
