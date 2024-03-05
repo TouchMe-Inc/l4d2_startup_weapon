@@ -10,19 +10,39 @@
 		"en"			"Only alive {blue}survivors{default} can get weapons"
 	}
 
+	"LEFT_READYUP"
+	{
+		"en"			"The command is available before readyup"
+	}
+
 	"ROUND_LIVE"
 	{
 		"en"			"The round has already begun"
 	}
 
-	"MAIN_MENU_TITLE"
+	"MENU_MAIN"
 	{
-		"en"			"Choose menu:"
+		"en"			"Choose menu"
 	}
 
-	"WEAPON_MENU_TITLE"
+	"MENU_MELEE"
 	{
-		"en"			"Choose weapon:"
+		"en"			"Melee"
+	}
+
+	"MENU_T1"
+	{
+		"en"			"Tier 1"
+	}
+
+	"MENU_T2"
+	{
+		"en"			"Tier 2"
+	}
+
+	"MENU_T3"
+	{
+		"en"			"Tier 3"
 	}
 
 	"baseball_bat"

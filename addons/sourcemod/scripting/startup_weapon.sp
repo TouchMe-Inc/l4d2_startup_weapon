@@ -1,5 +1,5 @@
-#pragma semicolon 1
-#pragma newdecls required
+#pragma semicolon               1
+#pragma newdecls                required
 
 #include <sourcemod>
 #include <sdktools>
@@ -11,59 +11,87 @@ public Plugin myinfo =
 	name = "StartupWeapon",
 	author = "TouchMe",
 	description = "Add weapons on survivors while they are in the saveroom",
-	version = "build0005"
-};
+	version = "build0006",
+	url = "https://github.com/TouchMe-Inc/l4d2_startup_weapon"
+}
 
 
 #define TRANSLATIONS            "startup_weapon.phrases"
-#define CONFIG_FILEPATH         "configs/startup_weapon.txt"
+
+#define DEFAULT_PATH_TO_CFG     "addons/sourcemod/configs/startup_weapon.txt"
 
 #define TEAM_SURVIVOR           2
 
-#define WEAPON_NAME_SIZE        32
-#define WEAPON_CMD_SIZE         32
+
+enum struct E_Menu
+{
+	char sName[32];
+	Handle hItems;
+}
 
 
-char g_sConfigCategory[][] = {"Melee", "Tier1", "Tier2", "Tier3"};
-
-char g_sConfigSection[WEAPON_NAME_SIZE];
-
-int g_iConfigType = -1;
+ConVar g_cvPathToCfg = null;
 
 bool g_bRoundIsLive = false;
 
-enum
-{
-	Melee = 0,
-	Tier1,
-	Tier2,
-	Tier3,
-	TypeSize
-}
-
-ConVar g_cvWeaponEnable[TypeSize];
-
-bool g_bWeaponEnable[TypeSize];
-
 Handle
-	g_hWeapon[TypeSize],
-	g_hCmd[TypeSize];
+	g_hWeaponSlots = null,
+	g_hMenuCmds = null,    /* sm_melee => 1, sm_t1 => 2, ... */
+	g_hWeaponCmds = null,  /* sm_katana => 1, ... */
+	g_hMenus = null,       /* 1 => { sName = MELEE, hItems = [1,2,3,4] } ... */
+	g_hWeapons = null      /* 1 => weapon_katana, ..., 5 => weapon_pistol, */
+;
 
 
 /**
-  * Called before OnPluginStart.
-  */
+ * Called before OnPluginStart.
+ *
+ * @param myself            Handle to the plugin.
+ * @param late              Whether or not the plugin was loaded "late" (after map load).
+ * @param error             Error message buffer in case load failed.
+ * @param err_max           Maximum number of characters for error message buffer.
+ * @return                  APLRes_Success | APLRes_SilentFailure.
+ */
 public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max)
 {
-	EngineVersion engine = GetEngineVersion();
-
-	if (engine != Engine_Left4Dead2)
+	if (GetEngineVersion() != Engine_Left4Dead2)
 	{
 		strcopy(error, err_max, "Plugin only supports Left 4 Dead 2.");
 		return APLRes_SilentFailure;
 	}
 
 	return APLRes_Success;
+}
+
+public void OnPluginStart()
+{
+	LoadTranslations(TRANSLATIONS);
+
+	g_cvPathToCfg = CreateConVar("sm_sw_path_to_cfg", DEFAULT_PATH_TO_CFG);
+
+	HookConVarChange(g_cvPathToCfg, OnPathToCfgChanged);
+
+	HookEvent("round_start", Event_RoundStart, EventHookMode_PostNoCopy);
+	HookEvent("player_left_start_area", Event_LeftStartArea, EventHookMode_PostNoCopy);
+	HookEvent("weapon_drop", Event_WeaponDrop, EventHookMode_Post);
+
+	g_hWeaponSlots = CreateTrie();
+	g_hMenuCmds = CreateTrie();
+	g_hWeaponCmds = CreateTrie();
+	g_hMenus = CreateArray(sizeof(E_Menu));
+	g_hWeapons = CreateArray(ByteCountToCells(32));
+
+	FillWeaponSlots(g_hWeaponSlots);
+
+	char sPath[PLATFORM_MAX_PATH ];
+	GetConVarString(g_cvPathToCfg, sPath, sizeof(sPath));
+
+	LoadConfig(sPath);
+
+	RegConsoleCmd("sm_w", Cmd_ShowMainMenu);
+
+	RegConsoleCmdByMap(g_hMenuCmds, Cmd_ShowWeaponMenu);
+	RegConsoleCmdByMap(g_hWeaponCmds, Cmd_GiveWeapon);
 }
 
 /**
@@ -73,84 +101,17 @@ public void OnMapStart() {
 	g_bRoundIsLive = false;
 }
 
-public void OnPluginStart()
+/**
+ *
+ */
+void OnPathToCfgChanged(ConVar convar, const char[] sOldValue, const char[] sNewValue)
 {
-	LoadTranslations(TRANSLATIONS);
+	ClearTrie(g_hMenuCmds);
+	ClearTrie(g_hWeaponCmds);
+	ClearArray(g_hMenus);
+	ClearArray(g_hWeapons);
 
-	// Config
-	for (int type = 0; type < TypeSize; type ++)
-	{
-		g_hCmd[type] = CreateTrie();
-		g_hWeapon[type] = CreateArray(ByteCountToCells(WEAPON_NAME_SIZE));
-	}
-
-	LoadConfig(CONFIG_FILEPATH);
-
-	// Cvars
-	HookConVarChange((g_cvWeaponEnable[Melee] = CreateConVar("sm_sw_melee_enabled", "1")), OnMeleeEnableChanged);
-	HookConVarChange((g_cvWeaponEnable[Tier1] = CreateConVar("sm_sw_tier1_enabled", "1")), OnTier1EnableChanged);
-	HookConVarChange((g_cvWeaponEnable[Tier2] = CreateConVar("sm_sw_tier2_enabled", "0")), OnTier2EnableChanged);
-	HookConVarChange((g_cvWeaponEnable[Tier3] = CreateConVar("sm_sw_tier3_enabled", "0")), OnTier3EnableChanged);
-
-	// Register commands
-	RegConsoleCmd("sm_w", Cmd_ShowMainMenu);
-
-	RegConsoleCmd("sm_melee", Cmd_ShowMeleeMenu);
-	RegConsoleCmd("sm_t1", Cmd_ShowTier1Menu);
-	RegConsoleCmd("sm_t2", Cmd_ShowTier2Menu);
-	RegConsoleCmd("sm_t3", Cmd_ShowTier3Menu);
-
-	RegConsoleCmdByMap(g_hCmd[Melee], Cmd_GiveMelee);
-	RegConsoleCmdByMap(g_hCmd[Tier1], Cmd_GiveTier1);
-	RegConsoleCmdByMap(g_hCmd[Tier2], Cmd_GiveTier2);
-	RegConsoleCmdByMap(g_hCmd[Tier3], Cmd_GiveTier3);
-
-	// Events
-	HookEvent("round_start", Event_RoundStart, EventHookMode_PostNoCopy);
-	HookEvent("player_left_start_area", Event_LeftStartArea, EventHookMode_PostNoCopy);
-	HookEvent("weapon_drop", Event_WeaponDrop);
-
-	for (int type = 0; type < TypeSize; type ++)
-	{
-		g_bWeaponEnable[type] = GetConVarBool(g_cvWeaponEnable[type]);
-	}
-}
-
-public void OnPluginEnd()
-{
-	for (int type = 0; type < TypeSize; type ++)
-	{
-		CloseHandle(g_hCmd[type]);
-		CloseHandle(g_hWeapon[type]);
-	}
-}
-
-/**
- * Called when a console variable value is changed.
- */
-public void OnMeleeEnableChanged(ConVar convar, const char[] sOldWeapon, const char[] sNewWeapon) {
-	g_bWeaponEnable[Melee] = GetConVarBool(convar);
-}
-
-/**
- * Called when a console variable value is changed.
- */
-public void OnTier1EnableChanged(ConVar convar, const char[] sOldWeapon, const char[] sNewWeapon) {
-	g_bWeaponEnable[Tier1] = GetConVarBool(convar);
-}
-
-/**
- * Called when a console variable value is changed.
- */
-public void OnTier2EnableChanged(ConVar convar, const char[] sOldWeapon, const char[] sNewWeapon) {
-	g_bWeaponEnable[Tier2] = GetConVarBool(convar);
-}
-
-/**
- * Called when a console variable value is changed.
- */
-public void OnTier3EnableChanged(ConVar convar, const char[] sOldWeapon, const char[] sNewWeapon) {
-	g_bWeaponEnable[Tier3] = GetConVarBool(convar);
+	LoadConfig(sNewValue);
 }
 
 void Event_RoundStart(Event event, const char[] sName, bool bDontBroadcast) {
@@ -167,25 +128,37 @@ Action Event_WeaponDrop(Event event, const char[] sName, bool bDontBroadcast)
 		return Plugin_Continue;
 	}
 
-	char sWeaponName[WEAPON_NAME_SIZE];
+	int iClient = GetClientOfUserId(GetEventInt(event, "userid"));
+
+	if (!iClient || !IsPlayerAlive(iClient)) {
+		return Plugin_Stop;
+	}
+
+	int iEnt = GetEventInt(event, "propid");
+
+	if (!IsValidEntity(iEnt) || !IsValidEdict(iEnt)) {
+		return Plugin_Stop;
+	}
+
+	char sWeaponName[32];
 	GetEventString(event, "item", sWeaponName, sizeof(sWeaponName));
 
 	static const char sNoDupeWeapons[][] = {
 		"smg_silenced", "smg", "smg_mp5",
 		"pumpshotgun", "shotgun_chrome",
 		"sniper_scout",
-		"sniper_awp", "sniper_military", "hunting_rifle",
+		"sniper_military", "hunting_rifle",
 		"autoshotgun", "shotgun_spas",
 		"rifle_ak47", "rifle_desert", "rifle_sg552", "rifle",
 		"pistol_magnum", "pistol",
-		"rifle_m60", "grenade_launcher"
+		"sniper_awp", "rifle_m60", "grenade_launcher"
 	};
 
 	for (int iItem = 0; iItem < sizeof(sNoDupeWeapons); iItem ++)
 	{
 		if (StrEqual(sNoDupeWeapons[iItem], sWeaponName, false))
 		{
-			RemoveEntity(GetEventInt(event, "propid"));
+			RemoveEntity(iEnt);
 			break;
 		}
 	}
@@ -193,135 +166,173 @@ Action Event_WeaponDrop(Event event, const char[] sName, bool bDontBroadcast)
 	return Plugin_Continue;
 }
 
-Action Cmd_GiveMelee(int iClient, int iArgs)
+void LoadConfig(const char[] sPath)
 {
-	if (!IsValidClient(iClient) || !g_bWeaponEnable[Melee]) {
-		return Plugin_Continue;
+	if (!FileExists(sPath)) {
+		SetFailState("Couldn't load %s", sPath);
 	}
 
-	char sCmd[WEAPON_CMD_SIZE]; GetCmdArg(0, sCmd, sizeof(sCmd));
+	Handle hConfigList = CreateKeyValues("Weapons");
 
-	return GiveWeaponByTypeAndCmd(iClient, Melee, sCmd);
-}
-
-Action Cmd_GiveTier1(int iClient, int iArgs)
-{
-	if (!IsValidClient(iClient) || !g_bWeaponEnable[Tier1]) {
-		return Plugin_Continue;
+ 	if (!FileToKeyValues(hConfigList, sPath)) {
+		SetFailState("Failed to parse keyvalues for %s", sPath);
 	}
 
-	char sCmd[WEAPON_CMD_SIZE]; GetCmdArg(0, sCmd, sizeof(sCmd));
+	if (KvGotoFirstSubKey(hConfigList, false))
+	{
+		int iMenuIndex = 0, iWeaponIndex = 0;
+		E_Menu menu;
+		char sSectionName[32], sSectionKey[16], sSectionValue[32], sWeaponName[32], sWeaponKey[16], sWeaponValue[32];
 
-	return GiveWeaponByTypeAndCmd(iClient, Tier1, sCmd);
-}
+		do
+		{
+			KvGetSectionName(hConfigList, sSectionName, sizeof(sSectionName));
 
-Action Cmd_GiveTier2(int iClient, int iArgs)
-{
-	if (!IsValidClient(iClient) || !g_bWeaponEnable[Tier2]) {
-		return Plugin_Continue;
+			strcopy(menu.sName, sizeof(menu.sName), sSectionName);
+			menu.hItems = CreateArray();
+
+			iMenuIndex = PushArrayArray(g_hMenus, menu);
+
+			if (KvGotoFirstSubKey(hConfigList, false))
+			{
+				do
+				{
+					KvGetSectionName(hConfigList, sSectionKey, sizeof(sSectionKey));
+
+					if (StrEqual(sSectionKey, "cmd", false))
+					{
+						KvGetString(hConfigList, NULL_STRING, sSectionValue, sizeof(sSectionValue));
+
+						SetTrieValue(g_hMenuCmds, sSectionValue, iMenuIndex);
+					}
+
+					else if (StrEqual(sSectionKey, "items", false) && KvGotoFirstSubKey(hConfigList, false))
+					{
+						do
+						{
+							KvGetSectionName(hConfigList, sWeaponName, sizeof(sWeaponName));
+
+							iWeaponIndex = PushArrayString(g_hWeapons, sWeaponName);
+
+							GetArrayArray(g_hMenus, iMenuIndex, menu);
+
+							PushArrayCell(menu.hItems, iWeaponIndex);
+
+							if (KvGotoFirstSubKey(hConfigList, false))
+							{
+								do
+								{
+									KvGetSectionName(hConfigList, sWeaponKey, sizeof(sWeaponKey));
+
+									if (StrEqual(sWeaponKey, "cmd", false))
+									{
+										KvGetString(hConfigList, NULL_STRING, sWeaponValue, sizeof(sWeaponValue));
+
+										SetTrieValue(g_hWeaponCmds, sWeaponValue, iWeaponIndex);
+									}
+
+								} while (KvGotoNextKey(hConfigList, false));
+
+								KvGoBack(hConfigList);
+							}
+
+						} while (KvGotoNextKey(hConfigList, false));
+
+						KvGoBack(hConfigList);
+					}
+
+				} while (KvGotoNextKey(hConfigList, false));
+
+				KvGoBack(hConfigList);
+			}
+		} while (KvGotoNextKey(hConfigList, false));
 	}
 
-	char sCmd[WEAPON_CMD_SIZE]; GetCmdArg(0, sCmd, sizeof(sCmd));
-
-	return GiveWeaponByTypeAndCmd(iClient, Tier2, sCmd);
-}
-
-Action Cmd_GiveTier3(int iClient, int iArgs)
-{
-	if (!IsValidClient(iClient) || !g_bWeaponEnable[Tier3]) {
-		return Plugin_Continue;
-	}
-
-	char sCmd[WEAPON_CMD_SIZE]; GetCmdArg(0, sCmd, sizeof(sCmd));
-
-	return GiveWeaponByTypeAndCmd(iClient, Tier3, sCmd);
+	CloseHandle(hConfigList);
 }
 
 Action Cmd_ShowMainMenu(int iClient, int iArgs)
 {
-	if (!IsValidClient(iClient)) {
-		return Plugin_Continue;
+	if (!iClient) {
+		return Plugin_Handled;
 	}
 
-	if (CanPickupWeapon(iClient)) {
-		ShowMainMenu(iClient);
+	if (!CanPickupWeapon(iClient)) {
+		return Plugin_Handled;
 	}
+
+	ShowMainMenu(iClient);
 
 	return Plugin_Handled;
 }
 
-Action Cmd_ShowMeleeMenu(int iClient, int iArgs)
+Action Cmd_ShowWeaponMenu(int iClient, int iArgs)
 {
-	if (!IsValidClient(iClient) || !g_bWeaponEnable[Melee]) {
+	if (!iClient) {
+		return Plugin_Handled;
+	}
+
+	char sCmd[32]; GetCmdArg(0, sCmd, sizeof(sCmd));
+	int iMenuIndex = 0;
+
+	if (!GetTrieValue(g_hMenuCmds, sCmd, iMenuIndex)) {
 		return Plugin_Continue;
 	}
 
-	if (CanPickupWeapon(iClient)) {
-		ShowWeaponMenu(iClient, g_hWeapon[Melee]);
+	if (!CanPickupWeapon(iClient)) {
+		return Plugin_Handled;
 	}
+
+	ShowWeaponMenu(iClient, iMenuIndex);
 
 	return Plugin_Handled;
 }
 
-Action Cmd_ShowTier1Menu(int iClient, int iArgs)
+Action Cmd_GiveWeapon(int iClient, int iArgs)
 {
-	if (!IsValidClient(iClient) || !g_bWeaponEnable[Tier1]) {
+	if (!iClient) {
+		return Plugin_Handled;
+	}
+
+	char sCmd[32]; GetCmdArg(0, sCmd, sizeof(sCmd));
+
+	int iWeaponIndex = 0;
+
+	if (!GetTrieValue(g_hWeaponCmds, sCmd, iWeaponIndex)) {
 		return Plugin_Continue;
 	}
 
-	if (CanPickupWeapon(iClient)) {
-		ShowWeaponMenu(iClient, g_hWeapon[Tier1]);
+	if (!CanPickupWeapon(iClient)) {
+		return Plugin_Handled;
 	}
 
-	return Plugin_Handled;
-}
+	char sWeaponName[32];
+	GetArrayString(g_hWeapons, iWeaponIndex, sWeaponName, sizeof(sWeaponName));
 
-Action Cmd_ShowTier2Menu(int iClient, int iArgs)
-{
-	if (!IsValidClient(iClient) || !g_bWeaponEnable[Tier2]) {
-		return Plugin_Continue;
-	}
-
-	if (CanPickupWeapon(iClient)) {
-		ShowWeaponMenu(iClient, g_hWeapon[Tier3]);
-	}
-
-	return Plugin_Handled;
-}
-
-Action Cmd_ShowTier3Menu(int iClient, int iArgs)
-{
-	if (!IsValidClient(iClient) || !g_bWeaponEnable[Tier3]) {
-		return Plugin_Continue;
-	}
-
-	if (CanPickupWeapon(iClient)) {
-		ShowWeaponMenu(iClient, g_hWeapon[Tier3]);
-	}
+	PickupWeapon(iClient, sWeaponName);
 
 	return Plugin_Handled;
 }
 
 void ShowMainMenu(int iClient)
 {
+	E_Menu menu;
+
 	Menu hMenu = CreateMenu(HandlerMainMenu, MenuAction_Select|MenuAction_End);
+	SetMenuTitle(hMenu, "%T", "MENU_MAIN",  iClient);
 
-	SetMenuTitle(hMenu, "%T", "MAIN_MENU_TITLE", iClient);
+	int iArraySize = GetArraySize(g_hMenus);
 
-	if (g_bWeaponEnable[Melee]) {
-		AddMenuItem(hMenu, "melee", "Melee (!melee)");
-	}
+	char sMenuItem[64], sMenuIndex[4];
 
-	if (g_bWeaponEnable[Tier1]) {
-		AddMenuItem(hMenu, "tier1", "Tier1 (!t1)");
-	}
+	for (int iIndex = 0; iIndex < iArraySize; iIndex ++)
+	{
+		GetArrayArray(g_hMenus, iIndex, menu);
 
-	if (g_bWeaponEnable[Tier2]) {
-		AddMenuItem(hMenu, "tier2", "Tier2 (!t2)");
-	}
+		FormatEx(sMenuIndex, sizeof(sMenuIndex), "%d", iIndex);
+		FormatEx(sMenuItem, sizeof(sMenuItem), "%T", menu.sName, iClient);
 
-	if (g_bWeaponEnable[Tier3]) {
-		AddMenuItem(hMenu, "tier3", "Tier3 (!t3)");
+		AddMenuItem(hMenu, sMenuIndex, sMenuItem);
 	}
 
 	DisplayMenu(hMenu, iClient, -1);
@@ -335,38 +346,35 @@ int HandlerMainMenu(Menu hMenu, MenuAction hAction, int iClient, int iItem)
 
 		case MenuAction_Select:
 		{
-			if (!CanPickupWeapon(iClient)) {
-				return 0;
-			}
+			char sMenuIndex[4];
+			GetMenuItem(hMenu, iItem, sMenuIndex, sizeof(sMenuIndex));
 
-			char sItem[16]; GetMenuItem(hMenu, iItem, sItem, sizeof(sItem));
+			int iMenuIndex = StringToInt(sMenuIndex);
 
-			switch(sItem[4])
-			{
-				case 'e': ShowWeaponMenu(iClient, g_hWeapon[Melee]);
-				case '1': ShowWeaponMenu(iClient, g_hWeapon[Tier1]);
-				case '2': ShowWeaponMenu(iClient, g_hWeapon[Tier2]);
-				case '3': ShowWeaponMenu(iClient, g_hWeapon[Tier3]);
-			}
+			ShowWeaponMenu(iClient, iMenuIndex);
 		}
 	}
 
 	return 0;
 }
 
-void ShowWeaponMenu(int iClient, Handle &hType)
+void ShowWeaponMenu(int iClient, int iMenuIndex)
 {
-	int iSize = GetArraySize(hType);
-	char sWeaponName[WEAPON_NAME_SIZE], sMenuItem[64];
+	E_Menu menu;
+
+	GetArrayArray(g_hMenus, iMenuIndex, menu);
+
+	int iArraySize = GetArraySize(menu.hItems);
 
 	Menu hMenu = CreateMenu(HandlerWeaponMenu, MenuAction_Select|MenuAction_End);
-	SetMenuTitle(hMenu, "%T", "WEAPON_MENU_TITLE", iClient);
+	SetMenuTitle(hMenu, "%T", menu.sName, iClient);
 
-	for (int iIndex = 0; iIndex < iSize; iIndex ++)
+	char sWeaponName[32], sMenuItem[64];
+	for (int iIndex = 0; iIndex < iArraySize; iIndex ++)
 	{
-		GetArrayString(hType, iIndex, sWeaponName, sizeof(sWeaponName));
+		GetArrayString(g_hWeapons, GetArrayCell(menu.hItems, iIndex), sWeaponName, sizeof(sWeaponName));
 
-		Format(sMenuItem, sizeof(sMenuItem), "%T", sWeaponName, iClient);
+		FormatEx(sMenuItem, sizeof(sMenuItem), "%T", sWeaponName, iClient);
 
 		AddMenuItem(hMenu, sWeaponName, sMenuItem);
 	}
@@ -382,16 +390,35 @@ int HandlerWeaponMenu(Menu hMenu, MenuAction hAction, int iClient, int iItem)
 
 		case MenuAction_Select:
 		{
-			char sWeaponName[WEAPON_NAME_SIZE];
+			char sWeaponName[32];
 			GetMenuItem(hMenu, iItem, sWeaponName, sizeof(sWeaponName));
 
-			if (CanPickupWeapon(iClient)) {
-				PickupWeapon(iClient, sWeaponName);
+			if (!CanPickupWeapon(iClient)) {
+				return 0;
 			}
+
+			PickupWeapon(iClient, sWeaponName);
 		}
 	}
 
 	return 0;
+}
+
+void RegConsoleCmdByMap(Handle &hType, ConCmd hCallback)
+{
+	Handle hSnapshot = CreateTrieSnapshot(hType);
+
+	int iSize = TrieSnapshotLength(hSnapshot);
+
+	char sCmd[32];
+
+	for (int iIndex = 0; iIndex < iSize; iIndex ++)
+	{
+		GetTrieSnapshotKey(hSnapshot, iIndex, sCmd, sizeof(sCmd));
+		RegConsoleCmd(sCmd, hCallback);
+	}
+
+	CloseHandle(hSnapshot);
 }
 
 bool CanPickupWeapon(int iClient)
@@ -411,168 +438,71 @@ bool CanPickupWeapon(int iClient)
 	return true;
 }
 
-void PickupWeapon(int iClient, const char[] sWeaponName)
+int PickupWeapon(int iClient, const char[] sWeaponName)
 {
-	int iEntOldWeapon = GetPlayerWeaponSlot(iClient, IsSecondary(sWeaponName) ? 1 : 0);
+	int iSlot = 0;
+
+	if (!GetTrieValue(g_hWeaponSlots, sWeaponName, iSlot)) {
+		return -1;
+	}
+
+	int iEntOldWeapon = GetPlayerWeaponSlot(iClient, iSlot);
 
 	if (iEntOldWeapon != -1) {
 		RemovePlayerItem(iClient, iEntOldWeapon);
 	}
 
-	GivePlayerItem(iClient, sWeaponName);
-}
-
-void RegConsoleCmdByMap(Handle &hType, ConCmd hCallback)
-{
-	Handle hSnapshot = CreateTrieSnapshot(hType);
-
-	int iSize = TrieSnapshotLength(hSnapshot);
-
-	char sCmd[WEAPON_CMD_SIZE];
-
-	for (int iIndex = 0; iIndex < iSize; iIndex ++)
-	{
-		GetTrieSnapshotKey(hSnapshot, iIndex, sCmd, sizeof(sCmd));
-		RegConsoleCmd(sCmd, hCallback);
-	}
-
-	CloseHandle(hSnapshot);
-}
-
-Action GiveWeaponByTypeAndCmd(int iClient, int iType, const char[] sCmd)
-{
-	char sWeaponName[WEAPON_NAME_SIZE];
-
-	if (!GetTrieString(g_hCmd[iType], sCmd, sWeaponName, sizeof(sWeaponName))) {
-		return Plugin_Continue;
-	}
-
-	if (CanPickupWeapon(iClient)) {
-		PickupWeapon(iClient, sWeaponName);
-	}
-
-	return Plugin_Handled;
-}
-
-
-bool LoadConfig(const char[] sPathToConfig)
-{
-	char sPath[PLATFORM_MAX_PATH];
-	BuildPath(Path_SM, sPath, PLATFORM_MAX_PATH, sPathToConfig);
-
-	if (!FileExists(sPath)) {
-		SetFailState("File %s not found", sPath);
-	}
-
-	Handle hParser = SMC_CreateParser();
-
-	int iLine = 0;
-	int iColumn = 0;
-
-	g_iConfigType = -1;
-	g_sConfigSection[0] = '\0';
-
-	SMC_SetReaders(hParser, Parser_EnterSection, Parser_KeyValue, Parser_LeaveSection);
-
-	SMCError hResult = SMC_ParseFile(hParser, sPath, iLine, iColumn);
-
-	CloseHandle(hParser);
-
-	if (hResult != SMCError_Okay)
-	{
-		char sError[128];
-		SMC_GetErrorString(hResult, sError, sizeof(sError));
-		LogError("%s on line %d, col %d of %s", sError, iLine, iColumn, sPath);
-	}
-
-	return (hResult == SMCError_Okay);
-}
-
-public SMCResult Parser_EnterSection(SMCParser smc, const char[] sSection, bool opt_quotes)
-{
-	if (StrEqual(sSection, "Weapons", false)) {
-		g_iConfigType = -1;
-		return SMCParse_Continue;
-	}
-
-	for (int type = 0; type < TypeSize; type ++)
-	{
-		if (StrEqual(sSection, g_sConfigCategory[type], false))
-		{
-			g_iConfigType = type;
-			return SMCParse_Continue;
-		}
-	}
-
-	strcopy(g_sConfigSection, sizeof(g_sConfigSection), sSection);
-
-	return SMCParse_Continue;
-}
-
-public SMCResult Parser_KeyValue(SMCParser smc,
-									const char[] sKey,
-									const char[] sValue,
-									bool key_quotes,
-									bool value_quotes)
-{
-	if (g_iConfigType == -1) {
-		return SMCParse_Continue;
-	}
-
-	if (StrEqual(sKey, "cmd", false)) {
-		SetTrieString(g_hCmd[g_iConfigType], sValue, g_sConfigSection);
-	}
-
-	return SMCParse_Continue;
-}
-
-public SMCResult Parser_LeaveSection(SMCParser smc)
-{
-	if (g_iConfigType == -1) {
-		return SMCParse_Continue;
-	}
-
-	if (g_sConfigSection[0] != '\0')
-	{
-		PushArrayString(g_hWeapon[g_iConfigType], g_sConfigSection);
-		g_sConfigSection[0] = '\0';
-	}
-	
-	else {
-		g_iConfigType = -1;
-	}
-
-
-	return SMCParse_Continue;
-}
-
-bool IsSecondary(const char[] sWeaponName)
-{
-	static const char sWeapons[][] = {
-		"weapon_pistol_magnum", "weapon_pistol",
-		"baseball_bat", "cricket_bat",
-		"crowbar", "electric_guitar",
-		"fireaxe", "frying_pan",
-		"golfclub", "katana",
-		"knife", "machete",
-		"pitchfork", "shovel",
-		"tonfa"
-	};
-
-	for (int iItem = 0; iItem < sizeof(sWeapons); iItem ++)
-	{
-		if (StrEqual(sWeapons[iItem], sWeaponName, false)) {
-			return true;
-		}
-	}
-
-	return false;
-}
-
-bool IsValidClient(int iClient) {
-	return (iClient > 0 && iClient <= MaxClients);
+	return GivePlayerItem(iClient, sWeaponName);
 }
 
 bool IsClientSurvivor(int iClient) {
 	return (GetClientTeam(iClient) == TEAM_SURVIVOR);
+}
+
+void FillWeaponSlots(Handle hWeaponSlot)
+{
+	SetTrieValue(hWeaponSlot, "weapon_pistol", 1);
+	SetTrieValue(hWeaponSlot, "weapon_smg", 0);
+	SetTrieValue(hWeaponSlot, "weapon_pumpshotgun", 0);
+	SetTrieValue(hWeaponSlot, "weapon_autoshotgun", 0);
+	SetTrieValue(hWeaponSlot, "weapon_rifle", 0);
+	SetTrieValue(hWeaponSlot, "weapon_hunting_rifle", 0);
+	SetTrieValue(hWeaponSlot, "weapon_smg_silenced", 0);
+	SetTrieValue(hWeaponSlot, "weapon_shotgun_chrome", 0);
+	SetTrieValue(hWeaponSlot, "weapon_rifle_desert", 0);
+	SetTrieValue(hWeaponSlot, "weapon_sniper_military", 0);
+	SetTrieValue(hWeaponSlot, "weapon_shotgun_spas", 0);
+	SetTrieValue(hWeaponSlot, "weapon_first_aid_kit", 3);
+	SetTrieValue(hWeaponSlot, "weapon_molotov", 2);
+	SetTrieValue(hWeaponSlot, "weapon_pipe_bomb", 2);
+	SetTrieValue(hWeaponSlot, "weapon_pain_pills", 4);
+	SetTrieValue(hWeaponSlot, "weapon_melee", 1);
+	SetTrieValue(hWeaponSlot, "weapon_chainsaw", 1);
+	SetTrieValue(hWeaponSlot, "weapon_grenade_launcher", 0);
+	SetTrieValue(hWeaponSlot, "weapon_ammo_pack", 3);
+	SetTrieValue(hWeaponSlot, "weapon_adrenaline", 4);
+	SetTrieValue(hWeaponSlot, "weapon_defibrillator", 3);
+	SetTrieValue(hWeaponSlot, "weapon_vomitjar", 2);
+	SetTrieValue(hWeaponSlot, "weapon_rifle_ak47", 0);
+	SetTrieValue(hWeaponSlot, "weapon_upgradepack_incendiary", 3);
+	SetTrieValue(hWeaponSlot, "weapon_upgradepack_explosive", 3);
+	SetTrieValue(hWeaponSlot, "weapon_pistol_magnum", 1);
+	SetTrieValue(hWeaponSlot, "weapon_smg_mp5", 0);
+	SetTrieValue(hWeaponSlot, "weapon_rifle_sg552", 0);
+	SetTrieValue(hWeaponSlot, "weapon_sniper_awp", 0);
+	SetTrieValue(hWeaponSlot, "weapon_sniper_scout", 0);
+	SetTrieValue(hWeaponSlot, "weapon_rifle_m60", 0);
+	SetTrieValue(hWeaponSlot, "baseball_bat", 1);
+	SetTrieValue(hWeaponSlot, "cricket_bat", 1);
+	SetTrieValue(hWeaponSlot, "crowbar", 1);
+	SetTrieValue(hWeaponSlot, "electric_guitar", 1);
+	SetTrieValue(hWeaponSlot, "fireaxe", 1);
+	SetTrieValue(hWeaponSlot, "frying_pan", 1);
+	SetTrieValue(hWeaponSlot, "golfclub", 1);
+	SetTrieValue(hWeaponSlot, "katana", 1);
+	SetTrieValue(hWeaponSlot, "knife", 1);
+	SetTrieValue(hWeaponSlot, "machete", 1);
+	SetTrieValue(hWeaponSlot, "pitchfork", 1);
+	SetTrieValue(hWeaponSlot, "shovel", 1);
+	SetTrieValue(hWeaponSlot, "tonfa", 1);
 }

@@ -1,167 +1,183 @@
 "Weapons"
 {
-	"Melee"
+	"MENU_MELEE"
 	{
-		"katana"
+		"cmd" "sm_melee"
+		"items"
 		{
-			"cmd" "katana"
-		}
+			"katana"
+			{
+				"cmd" "sm_katana"
+			}
 
-		"fireaxe"
-		{
-			"cmd" "axe"
-			"cmd" "fireaxe"
-		}
+			"fireaxe"
+			{
+				"cmd" "sm_axe"
+				"cmd" "sm_fireaxe"
+			}
 
-		"machete"
-		{
-			"cmd" "machete"
-		}
+			"machete"
+			{
+				"cmd" "sm_machete"
+			}
 
-		"baseball_bat"
-		{
-			"cmd" "baseball"
-		}
+			"baseball_bat"
+			{
+				"cmd" "sm_baseball"
+			}
 
-		"cricket_bat"
-		{
-			"cmd" "cricket"
-		}
+			"cricket_bat"
+			{
+				"cmd" "sm_cricket"
+			}
 
-		"crowbar"
-		{
-			"cmd" "crowbar"
-		}
+			"crowbar"
+			{
+				"cmd" "sm_crowbar"
+			}
 
-		"electric_guitar"
-		{
-			"cmd" "guitar"
-		}
+			"electric_guitar"
+			{
+				"cmd" "sm_guitar"
+			}
 
-		"frying_pan"
-		{
-			"cmd" "fryingpan"
-		}
+			"frying_pan"
+			{
+				"cmd" "sm_fryingpan"
+			}
 
-		"golfclub"
-		{
-			"cmd" "golfclub"
-		}
+			"golfclub"
+			{
+				"cmd" "sm_golfclub"
+			}
 
-		"knife"
-		{
-			"cmd" "knife"
-		}
+			"knife"
+			{
+				"cmd" "sm_knife"
+			}
 
-		"shovel"
-		{
-			"cmd" "shovel"
-		}
+			"shovel"
+			{
+				"cmd" "sm_shovel"
+			}
 
-		"pitchfork"
-		{
-			"cmd" "pitchfork"
-		}
+			"pitchfork"
+			{
+				"cmd" "sm_pitchfork"
+			}
 
-		"tonfa"
-		{
-			"cmd" "tonfa"
+			"tonfa"
+			{
+				"cmd" "sm_tonfa"
+			}
 		}
 	}
 
-	"Tier1"
+	"MENU_T1"
 	{
-		"weapon_smg"
+		"cmd" "sm_t1"
+		"items"
 		{
-			"cmd" "sm_uzi"
-		}
+			"weapon_smg"
+			{
+				"cmd" "sm_uzi"
+			}
 
-		"weapon_smg_silenced"
-		{
-			"cmd" "sm_smg"
-			"cmd" "sm_smgs"
-		}
+			"weapon_smg_silenced"
+			{
+				"cmd" "sm_smg"
+				"cmd" "sm_smgs"
+			}
 
-		"weapon_smg_mp5"
-		{
-			"cmd" "sm_mp5"
-		}
+			"weapon_smg_mp5"
+			{
+				"cmd" "sm_mp5"
+			}
 
-		"weapon_pumpshotgun"
-		{
-			"cmd" "sm_pump"
-		}
+			"weapon_pumpshotgun"
+			{
+				"cmd" "sm_pump"
+			}
 
-		"weapon_shotgun_chrome"
-		{
-			"cmd" "sm_chrome"
-		}
+			"weapon_shotgun_chrome"
+			{
+				"cmd" "sm_chrome"
+			}
 
-		//"weapon_sniper_scout"
-		//{
-		//	"cmd" "sm_scout"
-		//	"cmd" "sm_sniper"
-		//}
-	}
-
-	"Tier2"
-	{
-		"weapon_autoshotgun"
-		{
-			"cmd" "sm_autoshotgun"
-		}
-
-		"weapon_hunting_rifle"
-		{
-			"cmd" "sm_hunting"
-		}
-
-		"weapon_sniper_military"
-		{
-			"cmd" "sm_military"
-		}
-
-		"weapon_rifle"
-		{
-			"cmd" "sm_m4a1"
-		}
-
-		"weapon_rifle_desert"
-		{
-			"cmd" "sm_scar"
-		}
-
-		"weapon_rifle_ak47"
-		{
-			"cmd" "sm_ak47"
-		}
-
-		"weapon_rifle_sg552"
-		{
-			"cmd" "sm_sg552"
-		}
-
-		"weapon_shotgun_spas"
-		{
-			"cmd" "sm_spas"
-		}
-
-		"weapon_sniper_awp"
-		{
-			"cmd" "sm_awp"
+			"weapon_sniper_scout"
+			{
+				"cmd" "sm_scout"
+				"cmd" "sm_sniper"
+			}
 		}
 	}
 
-	"Tier3"
+	"MENU_T2"
 	{
-		"weapon_grenade_launcher"
+		"cmd" "sm_t2"
+		"items"
 		{
-			"cmd" "sm_gl"
-		}
+			"weapon_autoshotgun"
+			{
+				"cmd" "sm_autoshotgun"
+			}
 
-		"weapon_rifle_m60"
+			"weapon_hunting_rifle"
+			{
+				"cmd" "sm_hunting"
+			}
+
+			"weapon_sniper_military"
+			{
+				"cmd" "sm_military"
+			}
+
+			"weapon_rifle"
+			{
+				"cmd" "sm_m4a1"
+			}
+
+			"weapon_rifle_desert"
+			{
+				"cmd" "sm_scar"
+			}
+
+			"weapon_rifle_ak47"
+			{
+				"cmd" "sm_ak47"
+			}
+
+			"weapon_rifle_sg552"
+			{
+				"cmd" "sm_sg552"
+			}
+
+			"weapon_shotgun_spas"
+			{
+				"cmd" "sm_spas"
+			}
+		}
+	}
+
+	"MENU_T3"
+	{
+		"cmd" "sm_t3"
+		"items"
 		{
-			"cmd" "sm_m60"
+			"weapon_grenade_launcher"
+			{
+				"cmd" "sm_gl"
+			}
+
+			"weapon_rifle_m60"
+			{
+				"cmd" "sm_m60"
+			}
+
+			"weapon_sniper_awp"
+			{
+				"cmd" "sm_awp"
+			}
 		}
 	}
 }
