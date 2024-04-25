@@ -6,12 +6,11 @@
 #include <colors>
 
 
-public Plugin myinfo =
-{
+public Plugin myinfo = {
 	name = "StartupWeapon",
 	author = "TouchMe",
 	description = "Add weapons on survivors while they are in the saveroom",
-	version = "build0006",
+	version = "build_0006",
 	url = "https://github.com/TouchMe-Inc/l4d2_startup_weapon"
 }
 
