@@ -35,6 +35,7 @@ enum struct E_Menu
 ConVar g_cvPathToConfig = null;
 
 bool g_bRoundIsLive = false;
+bool g_bClientUseMenu[MAXPLAYERS + 1] = {false, ...};
 
 Handle
     g_hWeaponSlots = null,
@@ -121,8 +122,14 @@ void OnPathToCfgChanged(ConVar convar, const char[] sOldValue, const char[] sNew
     LoadConfig(sNewValue);
 }
 
-void Event_RoundStart(Event event, const char[] sName, bool bDontBroadcast) {
+void Event_RoundStart(Event event, const char[] sName, bool bDontBroadcast)
+{
     g_bRoundIsLive = false;
+
+    for (int iClient = 1; iClient <= MaxClients; iClient++)
+    {
+        g_bClientUseMenu[iClient] = false;
+    }
 }
 
 void Event_LeftStartArea(Event event, const char[] sName, bool bDontBroadcast) {
@@ -139,6 +146,10 @@ Action Event_WeaponDrop(Event event, const char[] sName, bool bDontBroadcast)
 
     if (!iClient || !IsPlayerAlive(iClient)) {
         return Plugin_Stop;
+    }
+
+    if (!g_bClientUseMenu[iClient]) {
+        return Plugin_Continue;
     }
 
     int iEnt = GetEventInt(event, "propid");
@@ -214,6 +225,7 @@ Action Cmd_GiveWeapon(int iClient, int iArgs)
     GetArrayString(g_hWeapons, iWeaponIndex, szWeaponName, sizeof(szWeaponName));
 
     PickupWeapon(iClient, szWeaponName);
+    g_bClientUseMenu[iClient] = true;
 
     return Plugin_Handled;
 }
@@ -303,6 +315,7 @@ int HandlerWeaponMenu(Menu hMenu, MenuAction hAction, int iClient, int iItem)
             }
 
             PickupWeapon(iClient, szWeaponName);
+            g_bClientUseMenu[iClient] = true;
         }
     }
 
@@ -372,7 +385,7 @@ void LoadConfig(const char[] sPath)
 
     Handle hConfigList = CreateKeyValues("Weapons");
 
-     if (!FileToKeyValues(hConfigList, sPath)) {
+    if (!FileToKeyValues(hConfigList, sPath)) {
         SetFailState("Failed to parse keyvalues for %s", sPath);
     }
 
